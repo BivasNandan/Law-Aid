@@ -21,8 +21,21 @@ const userSchema = new mongoose.Schema({
 
         }
     },
-    phone: String,
-    age: Number,
+    phone: {
+        type: String,
+        validate: {
+            validator: function(v) {
+                // Optional field, but if provided must be 10-15 digits
+                return !v || /^[0-9]{10,15}$/.test(v);
+            },
+            message: props => `${props.value} is not a valid phone number!`
+        }
+    },
+    age: {
+        type: Number,
+        min: [18, "Age must be at least 18!"],
+        max: [120, "Age seems invalid!"]
+    },
     profilePic: String,
     role: {type: String, enum: ["client", "lawyer", "admin"], default: "client"},
     

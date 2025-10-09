@@ -7,6 +7,7 @@ import { connectDB } from "../config/db.js";
 import bodyParser from "body-parser";
 import cookieParser from "cookie-parser";
 import authRoutes from "../routes/auth.route.js";
+import lawRoutes from "../routes/law.routes.js";
 
 const app = express();
 dotenv.config();
@@ -24,6 +25,7 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/law", lawRoutes);
 
 
 connectDB().then(() => {

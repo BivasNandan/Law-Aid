@@ -5,10 +5,11 @@ const lawSchema = new mongoose.Schema({
   codeNumber: String, 
   // e.g., "420", "Section 5", "Article 17"
   
+  definition: String, 
   title: { type: String, required: true }, 
   // e.g., "Cheating and dishonestly inducing delivery of property"
 
-  category: { type: String, enum: ["criminal", "civil", "family", "cyber", "property", "labour", "other"], default: "other" },
+  category: { type: String, enum: ["criminal", "civil", "family", "cyber", "property", "labour", "public", "other"], default: "other" },
 
   officialText: String, 
   // Official law text (English/Legal Language)
@@ -28,9 +29,7 @@ const lawSchema = new mongoose.Schema({
   verifiedBy: {type: mongoose.Schema.Types.ObjectId, ref: "User"},
   //to track who verified the law,
 
-  relatedDocuments: [String], 
-  // Optional: links to uploaded PDFs/images
-
+  relatedDocuments: [String],
 }, { timestamps: true });
 
 const Law = mongoose.model("Law", lawSchema);

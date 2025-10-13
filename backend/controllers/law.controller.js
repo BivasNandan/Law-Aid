@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import Law from "../models/law.js";
 
+// Middleware to check if user is admin or lawyer
 const isAdminOrLawyer = (req) => {
     const token = req.cookies.userToken;
     if (!token) return false;
@@ -55,6 +56,7 @@ export const deleteLaw = async (req, res) => {
     }
 };
 
+// Get all laws
 export const getLaw = async (req, res) => {
     try {
         const laws = await Law.find().sort({ _id: -1 });
@@ -65,3 +67,31 @@ export const getLaw = async (req, res) => {
         res.status(400).json({message: "Internal server error", error: error.message});
     }
 }
+
+export const getLawById = async (req, res) => {
+    try {
+        const law = await Law.findById(req.params.id);
+        if(!law) return res.status(404).json( {message: "No law found!"} );
+        return res.status(200).json(law);
+    } catch (error) {
+        return res.status(400).json({message: "Internal server error", error: error.message});
+    }
+}
+
+// Filter laws based on query parameters
+export const filterLaws = async (req, res) => {
+    try {
+        const query = {};
+        const { title, category, codeNumber } = req.query;
+        if (title) query.title = { $regex: title, $options: "i" };
+        if (category) query.category = category;
+        if (codeNumber) query.codeNumber = codeNumber;
+
+        const laws = await Law.find(query).sort({ _id: -1 });
+        if (!laws || laws.length === 0) return res.status(404).json({ message: "No laws found!" });
+
+        return res.status(200).json(laws);
+    } catch (error) {
+        return res.status(400).json({ message: "Internal server error", error: error.message });
+    }
+};

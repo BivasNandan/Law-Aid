@@ -1,13 +1,13 @@
 import express from "express";
-import { createLaw, deleteLaw, updateLaw, getLaw } from "../controllers/law.controller.js";
-import { get } from "mongoose";
+import { createLaw, deleteLaw, updateLaw, getLaw, getLawById, filterLaws } from "../controllers/law.controller.js";
 
 const router = express.Router();
 
 router.post("/createLaw", createLaw);
 router.patch("/update/:id", updateLaw);
 router.delete("/delete/:id", deleteLaw);
+router.get("/get/:id", getLawById);
 router.get("/getLaw", getLaw);
-
+router.get("/filterLaws", filterLaws);
 export default router;
 

@@ -6,6 +6,7 @@ const lawSchema = new mongoose.Schema({
   // e.g., "420", "Section 5", "Article 17"
   
   definition: String, 
+  
   title: { type: String, required: true }, 
   // e.g., "Cheating and dishonestly inducing delivery of property"
 

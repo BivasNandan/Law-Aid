@@ -178,6 +178,7 @@ export const logout = (_, res) => {
     return res.status(200).json({message: "Logged out successfully"});
 };
 
+//get all lawyers
 export const getAllLawyers = async (req, res) => {
     try {
         const lawyers = await User.find({role: "lawyer"}).select("-password");
@@ -188,6 +189,7 @@ export const getAllLawyers = async (req, res) => {
     }
 };
 
+//get all clients
 export const getAllClients = async (req, res) => {
     try {
         const clients = await User.find({role: "client"}).select("-password");
@@ -198,7 +200,8 @@ export const getAllClients = async (req, res) => {
     }
 };
 
-export const getSingularLawyer = async (req, res) => {
+//shows individual lawyer details based on username
+export const getLawyer = async (req, res) => {
   try {
     const { userName } = req.params;
 
@@ -240,7 +243,8 @@ export const getSingularLawyer = async (req, res) => {
   }
 };
 
-export const getSingularClient = async (req, res) => {
+//shows individual client details based on username
+export const getClient = async (req, res) => {
   try {
     const { userName } = req.params;
 
@@ -276,6 +280,7 @@ export const getSingularClient = async (req, res) => {
   }
 };
 
+// Filter lawyers based on query parameters
 export const filterLawyers = async (req, res) => {
     try {
         const { specialization, minExperience, maxExperience, verified, availability, minVisitingHours, maxVisitingHours } = req.query;
@@ -296,4 +301,90 @@ export const filterLawyers = async (req, res) => {
     }
 };
 
-//edit profile remaining only
+//shows individual client details based on id
+export const getClientById = async (req, res) => {
+
+    try {
+        const user = await User.findById(req.params.id).select("-password");
+        if (!user || user.role !== "client") {
+            return res.status(404).json({ message: "Client not found" });
+        }
+        return res.status(200).json(user);
+    } catch (error) {
+        return res.status(500).json({ message: "Internal server error", error: error.message });
+    }
+
+};
+
+//shows individual lawyer details based on id
+export const getLawyerById = async (req, res) => {
+    try {
+        const user = await User.findById(req.params.id).select("-password");
+        if (!user || user.role !== "lawyer") {
+            return res.status(404).json({ message: "Lawyer not found" });
+        }
+        return res.status(200).json(user);
+    } catch (error) {
+        return res.status(500).json({ message: "Internal server error", error: error.message });
+    }
+};
+
+//edit profile for both lawyers and clients
+export const editProfile = async (req, res) => {
+    try {
+        const token = req.cookies.userToken;
+        if (!token) return res.status(401).json({ message: "Authentication required." });
+
+        let userId;
+        try {
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            userId = decoded.userId
+        } catch {
+            return res.status(401).json({ message: "Invalid or expired token." });
+        }
+
+        const { userName, email, password, age, phone, profilePic } = req.body;
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ message: "User not found." });
+
+        if (userName !== undefined) user.userName = userName;
+        if (email !== undefined) user.email = email;
+        if (age !== undefined) user.age = age;
+        if (phone !== undefined) user.phone = phone;
+        if (profilePic !== undefined) user.profilePic = profilePic;
+        if (password !== undefined) {
+            if (password.length < 8) {
+                return res.status(400).json({ message: "Password must be at least 8 characters long." });
+            }
+            user.password = await bcrypt.hash(password, 10);
+        }
+
+        await user.save();
+        return res.status(200).json({ message: "Profile updated successfully." });
+
+    } catch (error) {
+        return res.status(500).json({ message: "Failed to update profile.", error: error.message });
+    }
+};
+
+//delete account for both lawyers and clients
+export const deleteAccount = async (req, res) => {
+    try {
+        const token = req.cookies.userToken;
+        if (!token) return res.status(401).json({ message: "Authentication required." });
+        let userId;
+        try {
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            userId = decoded.userId
+        } catch {
+            return res.status(401).json({ message: "Invalid or expired token." });
+        }
+        const user = await User.findByIdAndDelete(userId);
+        if (!user) return res.status(404).json({ message: "User not found." });
+        res.cookie("userToken", "", { maxAge: 0 });
+        res.cookie("roleToken", "", { maxAge: 0 });
+        return res.status(200).json({ message: "Account deleted successfully." });
+    } catch (error) {
+        return res.status(500).json({ message: "Failed to delete account.", error: error.message });
+    }
+};

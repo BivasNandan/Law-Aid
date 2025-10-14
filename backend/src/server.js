@@ -8,6 +8,7 @@ import bodyParser from "body-parser";
 import cookieParser from "cookie-parser";
 import authRoutes from "../routes/auth.route.js";
 import lawRoutes from "../routes/law.routes.js";
+import appointmentRoutes from "../routes/appointment.route.js";
 
 const app = express();
 dotenv.config();
@@ -26,7 +27,7 @@ app.get("/", (req, res) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/law", lawRoutes);
-
+app.use("/api/appointment", appointmentRoutes);
 
 connectDB().then(() => {
   app.listen(PORT, () => {

@@ -1,33 +1,47 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React from 'react'
+import { Routes, Route } from 'react-router-dom'
+import { Toaster } from 'react-hot-toast'
+
+// Common pages
+import Role from './common/Role'
+import Signup from './common/SignUp'
+import Profile from './client/client_pages/Profile'
+
+// Client-specific pages
+import Landpage_client from './client/client_pages/Landpage_clients'
+import View_law from './client/client_pages/View_law'
+import Find_lawyer from './client/client_pages/Find_lawyer'
+import Consultation_chat from './client/client_pages/Consultation_chat'
+import Book_appointment from './client/client_pages/Book_appointment'
+import clientDetails from './client/client_pages/clientDetails'
+
+// Lawyer-specific pages 
+import lawyerDetails from './Lawyer/lawyer_pages/lawyerDetails'
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
     <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
+      <Toaster position="top-center" />
+      <Routes>
+        {/* Home / Landing */}
+        <Route path="/" element={<Landpage_client />} />
+
+        {/* Auth / Signup */}
+        <Route path="/role" element={<Role />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/clientDetails" element={<clientDetails />} />
+        <Route path="/lawyerDetails" element={<lawyerDetails />} />
+
+
+        {/* Profile */}
+        <Route path="/profile" element={<Profile />} />
+
+        {/* Client-specific pages */}
+        <Route path="/view-law" element={<View_law />} />
+        <Route path="/find-lawyer" element={<Find_lawyer />} />
+        <Route path="/consultation-chat" element={<Consultation_chat />} />
+        <Route path="/book-appointment/:id" element={<Book_appointment />} />
+      </Routes>
     </>
   )
 }

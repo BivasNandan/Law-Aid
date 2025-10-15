@@ -5,11 +5,11 @@ export const generateTokenForRole = (role, res) => {
         expiresIn: "7d",
     });
 
-    res.cookie("roleToken", roleToken,{
+    res.cookie("roleToken", roleToken, {
         maxAge: 7 * 24 * 60 * 60 * 1000,
-        httpOnly: true, //prevents XSS attacks
-        sameSite: "strict", //CSRF attacks
-        secure: process.env.NODE_ENV === "development" ? false : true
+        httpOnly: true,
+        sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax", // ✅ FIXED
+        secure: process.env.NODE_ENV === "production" // ✅ FIXED
     });
 
     return roleToken;
@@ -20,11 +20,11 @@ export const generateTokenForUserId = (userId, res) => {
         expiresIn: "7d",
     });
 
-    res.cookie("userToken", userToken,{
+    res.cookie("userToken", userToken, {
         maxAge: 7 * 24 * 60 * 60 * 1000,
-        httpOnly: true, //prevents XSS attacks
-        sameSite: "strict", //CSRF attacks
-        secure: process.env.NODE_ENV === "development" ? false : true
+        httpOnly: true,
+        sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax", // ✅ FIXED
+        secure: process.env.NODE_ENV === "production" // ✅ FIXED
     });
 
     return userToken;

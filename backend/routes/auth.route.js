@@ -1,13 +1,20 @@
 import express from "express";
 import { assigningRole, register, setClientAdditionalInfo, setLawyerAdditionalInfo, login, logout, getAllLawyers, getAllClients, getLawyer, getClient, filterLawyers, getClientById, editProfile, deleteAccount, getLawyerById } from "../controllers/auth.controller.js";
+import { uploadProfilePic, uploadLawyerResume, uploadBothFiles } from "../middleware/uploads.js";
 
 const router = express.Router();
 
 //starting of registration and login routes
 router.post("/assigningRole", assigningRole);
 router.post("/register", register);
-router.patch("/set-lawyer-additional-info", setLawyerAdditionalInfo);
-router.patch("/set-client-additional-info", setClientAdditionalInfo);
+
+router.patch("/set-lawyer-additional-info", uploadProfilePic.single("profilePic"), setLawyerAdditionalInfo);
+router.patch("/set-client-additional-info",
+    uploadBothFiles.fields([
+    { name: "profilePic", maxCount: 1 },
+    { name: "resume", maxCount: 1 }
+  ]),setClientAdditionalInfo);
+
 router.post("/login", login);
 router.post("/logout", logout);
 //end of registration and login routes

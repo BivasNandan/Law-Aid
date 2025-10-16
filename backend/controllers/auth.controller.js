@@ -84,7 +84,18 @@ export const setClientAdditionalInfo = async (req, res) => {
         if (lastName !== undefined) user.lastName = lastName;
         if (phone !== undefined) user.phone = phone;
         if (age !== undefined) user.age = age;
-        if (profilePic !== undefined) user.profilePic = profilePic;
+        
+        if (req.file) {
+            // Update profile pic with file metadata
+            user.profilePic = {
+                filename: req.file.filename,
+                originalName: req.file.originalname,
+                path: req.file.path,
+                mimetype: req.file.mimetype,
+                size: req.file.size,
+                uploadedAt: new Date()
+            };
+        }
 
         await user.save({ validateModifiedOnly: true });
         return res.status(200).json({ message: "Client details updated.", userId: user._id });  
@@ -141,7 +152,31 @@ export const setLawyerAdditionalInfo = async (req, res) => {
         if (experience !== undefined) user.experience = experience;
         if (phone !== undefined) user.phone = phone;
         if (age !== undefined) user.age = age;
-        if (profilePic !== undefined) user.profilePic = profilePic;
+        
+        if (req.files && req.files.profilePic) {
+            const profilePicFile = req.files.profilePic[0];
+            user.profilePic = {
+                filename: profilePicFile.filename,
+                originalName: profilePicFile.originalname,
+                path: profilePicFile.path,
+                mimetype: profilePicFile.mimetype,
+                size: profilePicFile.size,
+                uploadedAt: new Date()
+            };
+        }
+
+        // Handle resume file upload
+        if (req.files && req.files.resume) {
+            const resumeFile = req.files.resume[0];
+            user.resume = {
+                filename: resumeFile.filename,
+                originalName: resumeFile.originalname,
+                path: resumeFile.path,
+                mimetype: resumeFile.mimetype,
+                size: resumeFile.size,
+                uploadedAt: new Date()
+            };
+        }
 
         await user.save({ validateModifiedOnly: true });
         return res.status(200).json({ message: "Lawyer details updated.", userId: user._id });

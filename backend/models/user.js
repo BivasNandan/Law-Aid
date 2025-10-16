@@ -36,7 +36,17 @@ const userSchema = new mongoose.Schema({
         min: [18, "Age must be at least 18!"],
         max: [120, "Age seems invalid!"]
     },
-    profilePic: String,
+    profilePic: {
+        filename: String,        // Stored filename
+        originalName: String,    // Original filename
+        path: String,           // File path
+        mimetype: String,       // File type
+        size: Number,           // File size in bytes
+        uploadedAt: {           // Upload timestamp
+            type: Date,
+            default: Date.now
+        }
+    },
     role: {type: String, enum: ["client", "lawyer", "admin"], default: "client"},
     
     //for lawyers only
@@ -49,7 +59,18 @@ const userSchema = new mongoose.Schema({
     verified: {type: Boolean, default: false},
     availability: {type: Boolean, default: false},
     chamberAddress: String,
-    resume: String,
+    resume: {
+        filename: String,        // Stored filename
+        originalName: String,    // Original filename
+        path: String,           // File path
+        mimetype: String,       // File type (should be application/pdf, etc.)
+        size: Number,           // File size in bytes
+        uploadedAt: {           // Upload timestamp
+            type: Date,
+            default: Date.now
+        }
+    },
+
     visitingHours: Number,
     experience: Number,
 }, {timestamps: true});

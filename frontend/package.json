@@ -19,6 +19,7 @@
     "react-router-dom": "^7.9.4",
     "react-router-hash-link": "^2.4.3",
     "react-toastify": "^11.0.5",
+  "socket.io-client": "^4.8.1",
     "tailwindcss": "^4.1.14"
   },
   "devDependencies": {

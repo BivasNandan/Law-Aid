@@ -10,5 +10,23 @@
  --color-AboutBackgroudColor:#EFE5DA;
  --color-brown:#C2B6A9;
  --color-creamcolor:#F9F8F5;
+  --color-brown2:#94744E;
  
 }
+/* Add to your main CSS file */
+.line-clamp-2 {
+  overflow: hidden;
+  display: -webkit-box;
+  --webkit-box-orient: vertical;
+  --webkit-line-clamp: 2;
+}
+
+.line-clamp-3 {
+  overflow: hidden;
+  display: -webkit-box;
+  --webkit-box-orient: vertical;
+  --webkit-line-clamp: 3;
+}
+
+
+

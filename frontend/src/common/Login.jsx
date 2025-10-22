@@ -1,114 +1,99 @@
 import React, { useState, useContext } from 'react'
-import { Appcontext } from '../lib/Appcontext'
+import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { toast } from 'react-hot-toast'
-import { useNavigate } from 'react-router-dom'
+import { Appcontext } from '../lib/Appcontext'
 
-const Login = ({ onClose }) => {
-  const { backendUrl, setToken, setUserData } = useContext(Appcontext)
+const LoginPage = () => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
+  const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
+  const { backendUrl, setUserData } = useContext(Appcontext) // Remove setToken
 
   const handleLogin = async (e) => {
     e.preventDefault()
-    setIsLoading(true)
-    
-    try {
-      const { data } = await axios.post(
-        `${backendUrl}/api/auth/login`,
-        { email, password },
-        { withCredentials: true } // ✅ Send cookies
-      )
+    setLoading(true)
 
-      if (data._id) {
-        localStorage.setItem('token', data._id)
-        setToken(data._id)
-        
-        // Store user data
-        if (setUserData) {
-          setUserData({
-            userName: data.userName,
-            role: data.role,
-            _id: data._id
-          })
-        }
-        
-        toast.success('Login successful!')
-        if (onClose) onClose()
-        navigate('/')
-      } else {
-        toast.error('Invalid credentials!')
-      }
+    try {
+      const res = await axios.post(
+        `${backendUrl}/api/auth/login`, 
+        { email, password }, 
+        { withCredentials: true }
+      )
+      
+      console.log('✅ Login successful:', res.data)
+      
+      // Only set user data - the token is automatically stored in HTTP-only cookies
+      // Don't call setToken - we don't store token in frontend state
+      setUserData({
+        userName: res.data.userName,
+        _id: res.data._id,
+        role: res.data.role
+      })
+      
+      toast.success('Login successful!')
+      // After login, always go to the landing page. New lawyers still go to /lawyer-details from signup flow.
+      navigate('/')
     } catch (error) {
-      const errorMsg = error.response?.data?.message || 'Server error!'
-      toast.error(errorMsg)
-      console.error('Login error:', error)
+      console.error('❌ Login error:', error)
+      toast.error(error.response?.data?.message || 'Login failed')
     } finally {
-      setIsLoading(false)
+      setLoading(false)
     }
   }
 
-  const handleSignupRedirect = () => {
-    if (onClose) onClose()
-    navigate('/role')
-  }
-
   return (
-    <div className='fixed inset-0 flex justify-center items-center backdrop-blur-sm z-50'>
-      <div className='bg-creamcolor p-8 rounded-2xl shadow-lg w-full max-w-md relative'>
-        {onClose && (
-          <button
-            onClick={onClose}
-            className='absolute top-3 right-3 text-browntextcolor hover:text-brownforhover text-2xl leading-none'
-          >
-            ✖
-          </button>
-        )}
+    <div className='min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 flex items-center justify-center px-4 py-12'>
+      <div className='w-full max-w-md'>
+        <div className='bg-white rounded-lg shadow-2xl p-8'>
+          <h2 className='text-3xl font-bold text-amber-900 mb-8 text-center'>Welcome Back</h2>
+          
+          <form onSubmit={handleLogin} className='space-y-5'>
+            <div>
+              <label className='block text-sm font-semibold text-gray-700 mb-2'>Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className='w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-600'
+                placeholder='Enter your email'
+              />
+            </div>
 
-        <h2 className='text-2xl font-semibold text-browntextcolor mb-6 text-center'>
-          Login to Your Account
-        </h2>
+            <div>
+              <label className='block text-sm font-semibold text-gray-700 mb-2'>Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className='w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-600'
+                placeholder='Enter your password'
+              />
+            </div>
 
-        <form onSubmit={handleLogin}>
-          <input
-            type='email'
-            placeholder='Email Address'
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className='w-full border border-browntextcolor p-3 rounded mb-3 focus:outline-none focus:border-brownBG'
-            required
-          />
-          <input
-            type='password'
-            placeholder='Password'
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className='w-full border border-browntextcolor p-3 rounded mb-3 focus:outline-none focus:border-brownBG'
-            required
-          />
-          <button
-            type='submit'
-            disabled={isLoading}
-            className='bg-brownBG text-white w-full py-3 rounded hover:bg-browntextcolor transition disabled:bg-brownBG disabled:cursor-not-allowed'
-          >
-            {isLoading ? 'Logging in...' : 'Login'}
-          </button>
-        </form>
+            <button
+              type="submit"
+              disabled={loading}
+              className='w-full bg-amber-700 hover:bg-amber-800 text-white font-semibold py-3 rounded-lg transition disabled:opacity-50'
+            >
+              {loading ? 'Logging in...' : 'Log In'}
+            </button>
+          </form>
 
-        <p className='text-center mt-5 text-browntextcolor'>
-          Don't have an account?{' '}
-          <span
-            onClick={handleSignupRedirect}
-            className='text-browntextcolor cursor-pointer hover:underline font-medium'
-          >
-            Sign up
-          </span>
-        </p>
+          <div className='mt-6 text-center'>
+            <p className='text-gray-600'>Don't have an account? 
+              <button onClick={() => navigate('/role')} className='text-amber-700 font-semibold hover:text-amber-800 ml-2'>
+                Sign Up
+              </button>
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   )
 }
 
-export default Login
+export default LoginPage

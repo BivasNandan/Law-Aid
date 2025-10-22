@@ -5,11 +5,16 @@ export const generateTokenForRole = (role, res) => {
         expiresIn: "7d",
     });
 
-    res.cookie("roleToken", roleToken, {
+    const sameSite = process.env.NODE_ENV === 'production' ? 'strict' : 'lax';
+    const secure = process.env.NODE_ENV === 'production';
+
+    // ensure cookie path and attributes are consistent so it can be cleared reliably
+    res.cookie('roleToken', roleToken, {
         maxAge: 7 * 24 * 60 * 60 * 1000,
         httpOnly: true,
-        sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax", // ✅ FIXED
-        secure: process.env.NODE_ENV === "production" // ✅ FIXED
+        path: '/',
+        sameSite,
+        secure
     });
 
     return roleToken;
@@ -20,11 +25,15 @@ export const generateTokenForUserId = (userId, res) => {
         expiresIn: "7d",
     });
 
-    res.cookie("userToken", userToken, {
+    const sameSite = process.env.NODE_ENV === 'production' ? 'strict' : 'lax';
+    const secure = process.env.NODE_ENV === 'production';
+
+    res.cookie('userToken', userToken, {
         maxAge: 7 * 24 * 60 * 60 * 1000,
         httpOnly: true,
-        sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax", // ✅ FIXED
-        secure: process.env.NODE_ENV === "production" // ✅ FIXED
+        path: '/',
+        sameSite,
+        secure
     });
 
     return userToken;

@@ -1,9 +1,16 @@
 import React from 'react'
+import Navbar from "../../common/Navbar"
+import SearchLawyer from '../client_components/findLawyer/SearchLawyer'
+import Footer from '../../common/Footer'
 
-const Find_lawyer = () => {
-  return (
-    <div>Find_lawyer</div>
-  )
-}
+const FindLawyer = () => {
+    return (
+        <div>
+          <Navbar />
+          <SearchLawyer />
+          <Footer />
+        </div>
+      )
+    }
 
-export default Find_lawyer
+export default FindLawyer;

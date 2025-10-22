@@ -3,7 +3,7 @@ import Law from "../models/law.js";
 
 // Middleware to check if user is admin or lawyer
 const isAdminOrLawyer = (req) => {
-    const token = req.cookies.userToken;
+    const token = req.cookies.roleToken;
     if (!token) return false;
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -93,5 +93,27 @@ export const filterLaws = async (req, res) => {
         return res.status(200).json(laws);
     } catch (error) {
         return res.status(400).json({ message: "Internal server error", error: error.message });
+    }
+};
+
+// Return distinct categories available in the collection
+export const getCategories = async (req, res) => {
+    try {
+        const categories = await Law.distinct('category');
+        return res.status(200).json(categories);
+    } catch (error) {
+        return res.status(500).json({ message: 'Failed to get categories', error: error.message });
+    }
+};
+
+// Return distinct codeNumber values available in the collection
+export const getCodeNumbers = async (req, res) => {
+    try {
+        const codes = await Law.distinct('codeNumber');
+        // filter out empty/null values and sort
+        const filtered = codes.filter(Boolean).sort((a, b) => a.localeCompare(b, undefined, {numeric: true}));
+        return res.status(200).json(filtered);
+    } catch (error) {
+        return res.status(500).json({ message: 'Failed to get code numbers', error: error.message });
     }
 };

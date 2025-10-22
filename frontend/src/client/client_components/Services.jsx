@@ -31,7 +31,7 @@ const Services = () => {
     alt: "View Laws & Regulations",
     title: "View Laws & Regulations",
     description: "Access a comprehensive database of laws, regulations, and legal codes in Bangladesh.",
-    route: "/view-law"  
+    route: "/ViewLaw"  
   }
 ];
 

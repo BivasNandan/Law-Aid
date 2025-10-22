@@ -1,191 +1,310 @@
-import React, { useState, useContext } from 'react'
+import React, { useState, useContext, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Appcontext } from '../../lib/Appcontext'
 import axios from 'axios'
 import { toast } from 'react-hot-toast'
+import { Appcontext } from '../../lib/Appcontext'
 
-const LawyerDetails = () => {
-  const navigate = useNavigate()
-  const { backendUrl } = useContext(Appcontext)
-  const [isLoading, setIsLoading] = useState(false)
-
+const LawyerDetails= () => {
   const [formData, setFormData] = useState({
     specialization: '',
     licenseNo: '',
     chamberAddress: '',
-    resume: '',
-    visitingHours: '',
     experience: '',
+    visitingHours: '',
     phone: '',
-    age: ''
+    age: '',
+    profilePic: null,
+    resume: null
   })
+  const [preview, setPreview] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const profilePicRef = useRef(null)
+  const resumeRef = useRef(null)
+  const navigate = useNavigate()
+  const { backendUrl } = useContext(Appcontext)
 
   const specializations = [
     "Civil Law", "Criminal Law", "Family Law", "Corporate & Commercial Law",
-    "Constitutional & Administrative Law", "International Law",
-    "Intellectual Property Law", "Labour & Employment Law",
-    "Environmental Law", "Human Rights Law", "Health & Medical Law",
-    "Arbitration & ADR", "Maritime & Admiralty Law"
+    "Constitutional & Administrative Law", "International Law", "Intellectual Property Law",
+    "Labour & Employment Law", "Environmental Law", "Human Rights Law",
+    "Health & Medical Law", "Arbitration & ADR", "Maritime & Admiralty Law"
   ]
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value })
+    const { name, value } = e.target
+    setFormData(prev => ({ ...prev, [name]: value }))
+  }
+
+  const handleProfilePicChange = (e) => {
+    const file = e.target.files[0]
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please select an image file')
+        return
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image size must be less than 5MB')
+        return
+      }
+      setFormData(prev => ({ ...prev, profilePic: file }))
+      setPreview(URL.createObjectURL(file))
+      toast.success('Profile picture selected!')
+    }
+  }
+
+  const handleResumeChange = (e) => {
+    const file = e.target.files[0]
+    if (file) {
+      if (file.type !== 'application/pdf') {
+        toast.error('Please select a PDF file for resume')
+        return
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error('Resume size must be less than 10MB')
+        return
+      }
+      setFormData(prev => ({ ...prev, resume: file }))
+      toast.success('Resume selected!')
+    }
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    setIsLoading(true)
+
+    // Validate required fields
+    if (!formData.specialization || !formData.licenseNo || !formData.chamberAddress) {
+      toast.error('Specialization, License No., and Chamber Address are required')
+      return
+    }
+
+    setLoading(true)
 
     try {
-      await axios.post(
-        `${backendUrl}/api/users/lawyer-details`,
-        formData,
-        { withCredentials: true }
+      const data = new FormData()
+      data.append('specialization', formData.specialization)
+      data.append('licenseNo', formData.licenseNo)
+      data.append('chamberAddress', formData.chamberAddress)
+      data.append('experience', formData.experience || 0)
+      data.append('visitingHours', formData.visitingHours || 0)
+      data.append('phone', formData.phone || '')
+      data.append('age', formData.age || '')
+
+      // Append files only if they exist
+      if (formData.profilePic) {
+        data.append('profilePic', formData.profilePic)
+      }
+      if (formData.resume) {
+        data.append('resume', formData.resume)
+      }
+
+      const response = await axios.patch(
+        `${backendUrl}/api/auth/set-lawyer-additional-info`,
+        data,
+        {
+          withCredentials: true,
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        }
       )
-      
-      toast.success('Lawyer profile completed!')
+
+      toast.success('Profile completed successfully!')
       navigate('/')
     } catch (error) {
-      const errorMsg = error.response?.data?.message || 'Failed to save details!'
-      toast.error(errorMsg)
-      console.error('Lawyer details error:', error)
+      console.error('Profile update error:', error)
+      toast.error(error.response?.data?.message || 'Failed to update profile')
     } finally {
-      setIsLoading(false)
+      setLoading(false)
     }
   }
 
   return (
-    <div className='min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4'>
-      <div className='bg-white p-8 rounded-2xl shadow-lg w-full max-w-2xl'>
-        <h2 className='text-2xl font-semibold text-gray-800 mb-2 text-center'>
-          Complete Your Lawyer Profile
-        </h2>
-        <p className='text-gray-500 text-center mb-6'>
-          Fill in your professional details
-        </p>
+    <div className='min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 flex items-center justify-center px-4 py-12 pt-24'>
+      <div className='w-full max-w-2xl'>
+        <div className='bg-white rounded-lg shadow-2xl p-8'>
+          <h2 className='text-3xl font-bold text-amber-900 mb-8 text-center'>Complete Your Lawyer Profile</h2>
 
-        <form onSubmit={handleSubmit}>
-          <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+          <form onSubmit={handleSubmit} className='space-y-5'>
+            {/* Profile Picture */}
+            <div className='text-center'>
+              {preview ? (
+                <div className='relative inline-block'>
+                  <img 
+                    src={preview} 
+                    alt="preview" 
+                    className='w-24 h-24 rounded-full mx-auto mb-4 object-cover border-4 border-amber-700' 
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPreview(null)
+                      setFormData(prev => ({ ...prev, profilePic: null }))
+                      profilePicRef.current.value = ''
+                    }}
+                    className='absolute top-0 right-0 bg-red-500 hover:bg-red-600 text-white rounded-full p-1'
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                <div className='w-24 h-24 rounded-full mx-auto mb-4 bg-gray-200 flex items-center justify-center'>
+                  <svg className='w-12 h-12 text-gray-400' fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </div>
+              )}
+              
+              <input
+                ref={profilePicRef}
+                type="file"
+                accept="image/*"
+                onChange={handleProfilePicChange}
+                className='hidden'
+                id="profilePicInput"
+              />
+              
+              <button 
+                type="button"
+                onClick={() => profilePicRef.current?.click()}
+                className='text-amber-700 font-semibold hover:text-amber-800 transition'
+              >
+                {preview ? 'Change Photo' : 'Upload Photo'}
+              </button>
+            </div>
+
+            {/* Specialization */}
             <div>
-              <label className='block text-gray-700 mb-2 font-medium'>Specialization *</label>
+              <label className='block text-sm font-semibold text-gray-700 mb-2'>Specialization *</label>
               <select
-                name='specialization'
+                name="specialization"
                 value={formData.specialization}
                 onChange={handleChange}
-                className='w-full border border-gray-300 p-3 rounded focus:outline-none focus:border-blue-500'
                 required
+                className='w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-600'
               >
-                <option value=''>Select Specialization</option>
+                <option value="">Select specialization</option>
                 {specializations.map(spec => (
                   <option key={spec} value={spec}>{spec}</option>
                 ))}
               </select>
             </div>
 
+            {/* License No and Chamber Address */}
+            <div className='grid grid-cols-2 gap-4'>
+              <div>
+                <label className='block text-sm font-semibold text-gray-700 mb-2'>License No. *</label>
+                <input
+                  type="text"
+                  name="licenseNo"
+                  value={formData.licenseNo}
+                  onChange={handleChange}
+                  required
+                  className='w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-600'
+                  placeholder='Your license number'
+                />
+              </div>
+              <div>
+                <label className='block text-sm font-semibold text-gray-700 mb-2'>Chamber Address *</label>
+                <input
+                  type="text"
+                  name="chamberAddress"
+                  value={formData.chamberAddress}
+                  onChange={handleChange}
+                  required
+                  className='w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-600'
+                  placeholder='Chamber address'
+                />
+              </div>
+            </div>
+
+            {/* Experience and Visiting Hours */}
+            <div className='grid grid-cols-2 gap-4'>
+              <div>
+                <label className='block text-sm font-semibold text-gray-700 mb-2'>Experience (years)</label>
+                <input
+                  type="number"
+                  name="experience"
+                  value={formData.experience}
+                  onChange={handleChange}
+                  min="0"
+                  className='w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-600'
+                  placeholder='0'
+                />
+              </div>
+              <div>
+                <label className='block text-sm font-semibold text-gray-700 mb-2'>Visiting Hours</label>
+                <input
+                  type="number"
+                  name="visitingHours"
+                  value={formData.visitingHours}
+                  onChange={handleChange}
+                  min="0"
+                  className='w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-600'
+                  placeholder='Hours per week'
+                />
+              </div>
+            </div>
+
+            {/* Phone and Age */}
+            <div className='grid grid-cols-2 gap-4'>
+              <div>
+                <label className='block text-sm font-semibold text-gray-700 mb-2'>Phone</label>
+                <input
+                  type="tel"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  pattern="[0-9]{10,15}"
+                  className='w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-600'
+                  placeholder='1234567890'
+                />
+              </div>
+              <div>
+                <label className='block text-sm font-semibold text-gray-700 mb-2'>Age</label>
+                <input
+                  type="number"
+                  name="age"
+                  value={formData.age}
+                  onChange={handleChange}
+                  min="18"
+                  max="120"
+                  className='w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-600'
+                  placeholder='18'
+                />
+              </div>
+            </div>
+
+            {/* Resume Upload */}
             <div>
-              <label className='block text-gray-700 mb-2 font-medium'>License Number *</label>
+              <label className='block text-sm font-semibold text-gray-700 mb-2'>Resume (PDF)</label>
               <input
-                type='text'
-                name='licenseNo'
-                value={formData.licenseNo}
-                onChange={handleChange}
-                className='w-full border border-gray-300 p-3 rounded focus:outline-none focus:border-blue-500'
-                required
+                ref={resumeRef}
+                type="file"
+                accept=".pdf"
+                onChange={handleResumeChange}
+                className='hidden'
+                id="resumeInput"
               />
+              
+              <button 
+                type="button"
+                onClick={() => resumeRef.current?.click()}
+                className='w-full px-4 py-3 border-2 border-dashed border-amber-700 text-amber-700 font-semibold rounded-lg hover:bg-amber-50 transition'
+              >
+                {formData.resume ? `Resume: ${formData.resume.name}` : 'Upload Resume (PDF)'}
+              </button>
             </div>
 
-            <div className='md:col-span-2'>
-              <label className='block text-gray-700 mb-2 font-medium'>Chamber Address *</label>
-              <textarea
-                name='chamberAddress'
-                value={formData.chamberAddress}
-                onChange={handleChange}
-                className='w-full border border-gray-300 p-3 rounded focus:outline-none focus:border-blue-500'
-                rows='2'
-                required
-              />
-            </div>
-
-            <div>
-              <label className='block text-gray-700 mb-2 font-medium'>Phone (10-15 digits)</label>
-              <input
-                type='tel'
-                name='phone'
-                value={formData.phone}
-                onChange={handleChange}
-                pattern='[0-9]{10,15}'
-                placeholder='e.g., 01712345678'
-                className='w-full border border-gray-300 p-3 rounded focus:outline-none focus:border-blue-500'
-              />
-            </div>
-
-            <div>
-              <label className='block text-gray-700 mb-2 font-medium'>Age (18-120)</label>
-              <input
-                type='number'
-                name='age'
-                value={formData.age}
-                onChange={handleChange}
-                min='18'
-                max='120'
-                className='w-full border border-gray-300 p-3 rounded focus:outline-none focus:border-blue-500'
-              />
-            </div>
-
-            <div>
-              <label className='block text-gray-700 mb-2 font-medium'>Experience (Years)</label>
-              <input
-                type='number'
-                name='experience'
-                value={formData.experience}
-                onChange={handleChange}
-                min='0'
-                className='w-full border border-gray-300 p-3 rounded focus:outline-none focus:border-blue-500'
-              />
-            </div>
-
-            <div>
-              <label className='block text-gray-700 mb-2 font-medium'>Visiting Hours/Week</label>
-              <input
-                type='number'
-                name='visitingHours'
-                value={formData.visitingHours}
-                onChange={handleChange}
-                min='0'
-                className='w-full border border-gray-300 p-3 rounded focus:outline-none focus:border-blue-500'
-              />
-            </div>
-
-            <div className='md:col-span-2'>
-              <label className='block text-gray-700 mb-2 font-medium'>Resume URL</label>
-              <input
-                type='url'
-                name='resume'
-                value={formData.resume}
-                onChange={handleChange}
-                placeholder='https://...'
-                className='w-full border border-gray-300 p-3 rounded focus:outline-none focus:border-blue-500'
-              />
-            </div>
-          </div>
-
-          <div className='flex gap-4 mt-6'>
+            {/* Submit Button */}
             <button
-              type='button'
-              onClick={() => navigate('/')}
-              className='flex-1 bg-gray-200 text-gray-700 py-3 rounded hover:bg-gray-300 transition font-medium'
+              type="submit"
+              disabled={loading}
+              className='w-full bg-amber-700 hover:bg-amber-800 text-white font-semibold py-3 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed'
             >
-              Skip for Now
+              {loading ? 'Completing...' : 'Complete Profile'}
             </button>
-            <button
-              type='submit'
-              disabled={isLoading}
-              className='flex-1 bg-blue-600 text-white py-3 rounded hover:bg-blue-700 transition disabled:bg-blue-400 font-medium'
-            >
-              {isLoading ? 'Saving...' : 'Complete Profile'}
-            </button>
-          </div>
-        </form>
+          </form>
+        </div>
       </div>
     </div>
   )

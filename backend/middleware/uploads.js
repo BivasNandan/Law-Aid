@@ -1,6 +1,7 @@
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import jwt from "jsonwebtoken";
 
 // Ensure upload directories exist
 const ensureDir = (dir) => {
@@ -10,6 +11,7 @@ const ensureDir = (dir) => {
 };
 ensureDir("uploads/profilePics");
 ensureDir("uploads/resumes");
+ensureDir("uploads/chat");
 
 // File validation
 const fileFilter = (req, file, cb) => {
@@ -41,16 +43,32 @@ const fileFilter = (req, file, cb) => {
     }
 };
 
+// Helper function to extract userId from JWT token
+const getUserIdFromToken = (req) => {
+    try {
+        const token = req.cookies.userToken;
+        if (token) {
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            return decoded.userId;
+        }
+    } catch (error) {
+        console.log('Token extraction error:', error.message);
+         throw new Error('Authentication failed. Cannot upload file.');
+    }
+    return 'unknown';
+};
+
 // Configure storage with better file naming
 const createStorage = (folder) => multer.diskStorage({
     destination: (req, file, cb) => {
         cb(null, `uploads/${folder}/`);
     },
     filename: (req, file, cb) => {
-        const userPrefix = req.user ? req.user.userId : 'unknown';
+        // FIX: Extract userId from token instead of req.user
+        const userId = getUserIdFromToken(req);
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
         const safeName = file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, '_');
-        const filename = `${userPrefix}-${file.fieldname}-${uniqueSuffix}${path.extname(safeName)}`;
+        const filename = `${userId}-${file.fieldname}-${uniqueSuffix}${path.extname(safeName)}`;
         cb(null, filename);
     }
 });
@@ -86,10 +104,11 @@ export const uploadBothFiles = multer({
             }
         },
         filename: (req, file, cb) => {
-            const userPrefix = req.user ? req.user.userId : 'unknown';
+            // FIX: Extract userId from token instead of req.user
+            const userId = getUserIdFromToken(req);
             const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
             const safeName = file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, '_');
-            const filename = `${userPrefix}-${file.fieldname}-${uniqueSuffix}${path.extname(safeName)}`;
+            const filename = `${userId}-${file.fieldname}-${uniqueSuffix}${path.extname(safeName)}`;
             cb(null, filename);
         }
     }),
@@ -98,4 +117,18 @@ export const uploadBothFiles = multer({
         fileSize: 15 * 1024 * 1024, // 15MB total for both files
         files: 2
     }
+});
+export const chatStorage = multer.diskStorage({
+  destination: () => "uploads/chat",
+  filename: (req, file, cb) => cb(null, `${Date.now()}-chat${path.extname(file.originalname)}`)
+});
+
+
+export const uploadChatAttachments = multer({
+  storage: chatStorage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = /jpeg|jpg|png|gif|pdf|msword|vnd.openxmlformats-officedocument.wordprocessingml.document/;
+    cb(null, allowed.test(file.mimetype));
+  }
 });

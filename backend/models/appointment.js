@@ -5,7 +5,8 @@ const appointmentSchema = new mongoose.Schema({
     lawyer: {type: mongoose.Schema.Types.ObjectId, ref: "User", required: true},
     client: {type: mongoose.Schema.Types.ObjectId, ref: "User", required: true},
     dateTime: {type: Date, required: true},
-    status: {type: String, enum: ["pending", "confirmed", "cancelled"], default: "pending"}
+    status: {type: String, enum: ["pending", "confirmed", "cancelled"], default: "pending"},
+    conversationId: { type: mongoose.Schema.Types.ObjectId, ref: "Conversation" }
 
 }, {timestamps: true});
 

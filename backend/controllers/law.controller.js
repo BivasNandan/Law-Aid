@@ -3,7 +3,7 @@ import Law from "../models/law.js";
 
 // Middleware to check if user is admin or lawyer
 const isAdminOrLawyer = (req) => {
-    const token = req.cookies.userToken;
+    const token = req.cookies.roleToken;
     if (!token) return false;
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);

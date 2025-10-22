@@ -10,6 +10,7 @@ const ensureDir = (dir) => {
 };
 ensureDir("uploads/profilePics");
 ensureDir("uploads/resumes");
+ensureDir("uploads/chat");
 
 // File validation
 const fileFilter = (req, file, cb) => {
@@ -41,7 +42,7 @@ const fileFilter = (req, file, cb) => {
     }
 };
 
-// Configure storage with better file naming
+// Configuring storage with better file naming
 const createStorage = (folder) => multer.diskStorage({
     destination: (req, file, cb) => {
         cb(null, `uploads/${folder}/`);
@@ -98,4 +99,19 @@ export const uploadBothFiles = multer({
         fileSize: 15 * 1024 * 1024, // 15MB total for both files
         files: 2
     }
+});
+
+export const chatStorage = multer.diskStorage({
+  destination: () => "uploads/chat",
+  filename: (req, file, cb) => cb(null, `${Date.now()}-chat${path.extname(file.originalname)}`)
+});
+
+
+export const uploadChatAttachments = multer({
+  storage: chatStorage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = /jpeg|jpg|png|gif|pdf|msword|vnd.openxmlformats-officedocument.wordprocessingml.document/;
+    cb(null, allowed.test(file.mimetype));
+  }
 });

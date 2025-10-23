@@ -1,0 +1,11 @@
+{
+  "devDependencies": {
+    "chai": "^6.2.0",
+    "chromedriver": "^141.0.4",
+    "mocha": "^11.7.4",
+    "selenium-webdriver": "^4.37.0"
+  },
+  "scripts": {
+  "test:e2e": "mocha ./backend/tests --recursive --exit --timeout 60000"
+}
+}

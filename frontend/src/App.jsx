@@ -65,7 +65,7 @@ function App() {
         <Route path="/lawyer-details" element={<LawyerDetails />} />
         <Route path="/manage-appointments" element={<ManageAppointment />} />
         <Route path="/view-manage-law" element={<ViewManageLaw />} />
-        <Route path="/law-form/:id" element={<LawForm />} />
+        <Route path="/law-form/" element={<LawForm />} />
         <Route path="/schedule" element={<Schedule />} />
       </Routes>
     </>

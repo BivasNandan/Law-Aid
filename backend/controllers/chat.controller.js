@@ -4,6 +4,8 @@ import Message from "../models/message.js";
 import Appointment from "../models/appointment.js";
 import Consultation from "../models/consultation.js";
 import { getIO } from "../src/socket.js";
+import fs from "fs";
+import path from "path";
 
 const isParticipantForConversation = async (userId, conv) => {
   if (!conv) return false;
@@ -109,9 +111,35 @@ export const getMessages = async (req, res) => {
   }
 };
 
+export const getMyConversations = async (req, res) => {
+  try {
+    const me = req.user?.id;
+    if (!me) return res.status(401).json({ message: "Authentication required" });
+
+    const { type } = req.query;
+    const q = { participants: me };
+    if (type) q.type = type;
+
+    const convs = await Conversation.find(q)
+      .sort({ updatedAt: -1 })
+      .populate('participants', 'userName profilePic')
+      .populate({ path: 'lastMessage', populate: { path: 'sender', select: 'userName' } })
+      .limit(100);
+
+    return res.status(200).json(convs);
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+};
+
 export const uploadAttachments = async (req, res) => {
   try {
-    if (!req.files || req.files.length === 0) return res.status(400).json({ message: "No files" });
+    console.log("Upload request received. Files:", req.files ? req.files.length : 0);
+    console.log("File details:", req.files);
+    if (!req.files || req.files.length === 0) {
+      console.log("No files provided in upload request");
+      return res.status(400).json({ message: "No files" });
+    }
     const attachments = req.files.map(f => ({
       filename: f.filename,
       originalName: f.originalname,
@@ -120,8 +148,10 @@ export const uploadAttachments = async (req, res) => {
       size: f.size,
       uploadedAt: new Date()
     }));
+    console.log("Upload successful. Attachments:", attachments);
     return res.status(200).json({ attachments });
   } catch (err) {
+    console.error("Upload error:", err);
     return res.status(500).json({ message: err.message });
   }
 };
@@ -157,6 +187,84 @@ export const createMessageViaHttp = async (req, res) => {
 
     return res.status(201).json({ message });
   } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+};
+
+export const editMessage = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ message: "Authentication required" });
+
+    const { messageId } = req.params;
+    const { text, attachments = [] } = req.body;
+    if (!text && attachments.length === 0) return res.status(400).json({ message: "text or attachments required" });
+
+    const message = await Message.findById(messageId).populate("sender", "userName profilePic");
+    if (!message) return res.status(404).json({ message: "Message not found" });
+    
+    // Only sender can edit
+    if (message.sender._id.toString() !== userId) return res.status(403).json({ message: "Can only edit own messages" });
+
+    message.text = text;
+    if (attachments.length > 0) {
+      message.attachments = attachments;
+    }
+    message.edited = true;
+    message.editedAt = new Date();
+    await message.save();
+
+    // emit via sockets if available
+    try {
+      const io = getIO();
+      io.to(`conv_${message.conversation}`).emit("messageEdited", message);
+    } catch (e) {
+      // socket not initialized — ignore
+    }
+
+    return res.status(200).json({ message });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+};
+
+export const downloadAttachment = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ message: "Authentication required" });
+
+    const { filename } = req.params;
+    if (!filename) return res.status(400).json({ message: "Filename required" });
+
+    // Security: prevent directory traversal
+    if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+      return res.status(400).json({ message: "Invalid filename" });
+    }
+
+    const filePath = path.join(process.cwd(), 'uploads/chat', filename);
+    
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: "File not found" });
+    }
+
+    // Set proper headers for download
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Length', fs.statSync(filePath).size);
+
+    // Stream the file
+    const fileStream = fs.createReadStream(filePath);
+    fileStream.pipe(res);
+    
+    fileStream.on('error', (err) => {
+      console.error('Stream error:', err);
+      if (!res.headersSent) {
+        res.status(500).json({ message: "Download error" });
+      }
+    });
+  } catch (err) {
+    console.error('Download error:', err);
     return res.status(500).json({ message: err.message });
   }
 };

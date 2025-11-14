@@ -24,13 +24,8 @@ const LoginPage = () => {
       
       console.log('✅ Login successful:', res.data)
       
-      // Only set user data - the token is automatically stored in HTTP-only cookies
-      // Don't call setToken - we don't store token in frontend state
-      setUserData({
-        userName: res.data.userName,
-        _id: res.data._id,
-        role: res.data.role
-      })
+      // Set user data - now includes full user object
+      setUserData(res.data.user)
       
       toast.success('Login successful!')
       // After login, always go to the landing page. New lawyers still go to /lawyer-details from signup flow.

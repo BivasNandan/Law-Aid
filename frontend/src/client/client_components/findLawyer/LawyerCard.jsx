@@ -14,7 +14,7 @@ const LawyerCard = ({ lawyer, backendUrl, onBook, userData }) => {
       if (!userData || !lawyer) return
       
       try {
-        const res = await axios.get(`${backendUrl}/api/appointment/my-appointments`, { withCredentials: true })
+        const res = await axios.get(`${backendUrl}/api/appointment/user/${userData._id}`, { withCredentials: true })
         const appointments = res.data?.appointments || []
         
         // Find appointment with this lawyer

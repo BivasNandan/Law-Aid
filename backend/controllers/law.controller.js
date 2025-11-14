@@ -1,20 +1,40 @@
 import jwt from "jsonwebtoken";
 import Law from "../models/law.js";
+import User from "../models/user.js";
 
 // Middleware to check if user is admin or lawyer
-const isAdminOrLawyer = (req) => {
-    const token = req.cookies.roleToken;
-    if (!token) return false;
-    try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        return decoded.role === "admin" || decoded.role === "lawyer";
-    } catch (error){
-        return false;
+const isAdminOrLawyer = async (req) => {
+    // First try userToken (primary authentication)
+    const userToken = req.cookies.userToken;
+    if (userToken) {
+        try {
+            const decoded = jwt.verify(userToken, process.env.JWT_SECRET);
+            const user = await User.findById(decoded.userId);
+            if (user && (user.role === "admin" || user.role === "lawyer")) {
+                req.user = { id: decoded.userId, role: user.role };
+                return true;
+            }
+        } catch (error) {
+            // Continue to check roleToken
+        }
     }
+
+    // Fallback to roleToken (secondary authentication)
+    const roleToken = req.cookies.roleToken;
+    if (roleToken) {
+        try {
+            const decoded = jwt.verify(roleToken, process.env.JWT_SECRET);
+            return decoded.role === "admin" || decoded.role === "lawyer";
+        } catch (error) {
+            return false;
+        }
+    }
+
+    return false;
 };
 
 export const createLaw = async (req, res) => {
-    if (!isAdminOrLawyer(req)) {
+    if (!(await isAdminOrLawyer(req))) {
         return res.status(403).json({ message: "Forbidden: Only admins and lawyers can perform this action." });
     }
     try {
@@ -27,7 +47,7 @@ export const createLaw = async (req, res) => {
 };
 
 export const updateLaw = async (req, res) => {
-    if (!isAdminOrLawyer(req)) {
+    if (!(await isAdminOrLawyer(req))) {
         return res.status(403).json({ message: "Forbidden: Only admins and lawyers can perform this action." });
     }
     try {
@@ -42,7 +62,7 @@ export const updateLaw = async (req, res) => {
 };
 
 export const deleteLaw = async (req, res) => {
-    if (!isAdminOrLawyer(req)) {
+    if (!(await isAdminOrLawyer(req))) {
         return res.status(403).json({ message: "Forbidden: Only admins and lawyers can perform this action." });
     }
     try {
@@ -82,12 +102,16 @@ export const getLawById = async (req, res) => {
 export const filterLaws = async (req, res) => {
     try {
         const query = {};
-        const { title, category, codeNumber } = req.query;
+        const { title, category, codeNumber, isVerified } = req.query;
         if (title) query.title = { $regex: title, $options: "i" };
         if (category) query.category = category;
         if (codeNumber) query.codeNumber = codeNumber;
+        if (isVerified !== undefined) query.isVerified = isVerified === 'true';
 
-        const laws = await Law.find(query).sort({ _id: -1 });
+        const laws = await Law.find(query)
+            .populate('verifiedBy', 'userName')
+            .populate('createdBy', 'userName')
+            .sort({ updatedAt: -1 });
         if (!laws || laws.length === 0) return res.status(404).json({ message: "No laws found!" });
 
         return res.status(200).json(laws);
@@ -96,10 +120,18 @@ export const filterLaws = async (req, res) => {
     }
 };
 
-// Return distinct categories available in the collection
+// Return distinct categories that have at least one law
 export const getCategories = async (req, res) => {
     try {
-        const categories = await Law.distinct('category');
+        // Use aggregation to get only categories that have laws
+        const categoriesWithLaws = await Law.aggregate([
+            { $group: { _id: '$category', count: { $sum: 1 } } },
+            { $match: { _id: { $ne: null } } },
+            { $sort: { _id: 1 } }
+        ]);
+
+        // Extract just the category names
+        const categories = categoriesWithLaws.map(cat => cat._id);
         return res.status(200).json(categories);
     } catch (error) {
         return res.status(500).json({ message: 'Failed to get categories', error: error.message });

@@ -1,10 +1,13 @@
-import React from 'react'
+import React, { useContext } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Appcontext } from '../../lib/Appcontext'
 import law from '../../assets/law.png'
 import Schedule from '../../assets/Schedule.png'
+import consultation from '../../assets/consultation.png'
 
 const ServicesLawyer = () => {
   const navigate = useNavigate();
+  const { userData } = useContext(Appcontext)
 
   const services = [
   {
@@ -23,6 +26,15 @@ const ServicesLawyer = () => {
     description: "Easily schedule, view, and manage your client appointments all in one place.",
     route: "/manage-appointments"
 
+  },
+  {
+    id: 3,
+    image: consultation,
+    alt: "View Feedback",
+    title: "View Feedbacks",
+    description: "Give advice to clients through chat consultations.",
+    route: "/view-feedback"
+
   }
 ];
 return (
@@ -38,7 +50,14 @@ return (
                 {services.map((service) => (
                   <div 
                     key={service.id}
-                    onClick={() => navigate(service.route)}
+                    onClick={() => {
+                      if (service.id === 3) {
+                        if (!userData || !userData._id) return navigate('/login')
+                        navigate(`/view-feedback/${userData._id}`)
+                      } else {
+                        navigate(service.route)
+                      }
+                    }}
                     className='bg-[#F7F2EC] rounded-lg shadow-lg overflow-hidden cursor-pointer group hover:shadow-2xl transition-all duration-300 flex flex-col'
                   >
                     {/* Image Section */}
@@ -51,15 +70,12 @@ return (
                     </div>
                     
                     {/* Text Content Section */}
-                    <div className='p-4 sm:p-5 md:p-6 flex-grow flex flex-col'>
+                      <div className='p-4 sm:p-5 md:p-6 flex-grow flex flex-col'>
                       <h2 className='text-browntextcolor text-lg sm:text-xl md:text-xl font-bold mb-2 sm:mb-3 group-hover:text-brownforhover transition-colors duration-300'>
                         {service.title}
                       </h2>
                       <p className='text-browntextcolor-600 text-xs sm:text-sm leading-relaxed mb-3 sm:mb-4 flex-grow'>
                         {service.description}
-                      </p>
-                      <p className='text-browntextcolors-500 text-xs'>
-                        Click to learn more
                       </p>
                       
                     </div>

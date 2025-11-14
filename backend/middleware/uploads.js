@@ -119,16 +119,29 @@ export const uploadBothFiles = multer({
     }
 });
 export const chatStorage = multer.diskStorage({
-  destination: () => "uploads/chat",
-  filename: (req, file, cb) => cb(null, `${Date.now()}-chat${path.extname(file.originalname)}`)
+  destination: (req, file, cb) => {
+    const dir = `uploads/chat/`;
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.random().toString(36).substring(7);
+    const safeName = file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+    const filename = `${uniqueSuffix}-${safeName}`;
+    console.log("Saving file:", filename);
+    cb(null, filename);
+  }
 });
 
 
 export const uploadChatAttachments = multer({
   storage: chatStorage,
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB per file
   fileFilter: (req, file, cb) => {
-    const allowed = /jpeg|jpg|png|gif|pdf|msword|vnd.openxmlformats-officedocument.wordprocessingml.document/;
-    cb(null, allowed.test(file.mimetype));
+    console.log("File filter - filename:", file.filename, "mimetype:", file.mimetype);
+    // Allow all file types
+    cb(null, true);
   }
 });

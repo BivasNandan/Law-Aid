@@ -1,12 +1,14 @@
 import React, { useContext, useEffect, useState } from 'react'
 import { Appcontext } from '../../lib/Appcontext'
-import axios from 'axios'
+import axios from '../../lib/axiosConfig'
 import Navbar from '../../common/Navbar'
 import Footer from '../../common/Footer'
 import { io } from 'socket.io-client'
+import { useNavigate } from 'react-router-dom'
 
 const Schedule = () => {
   const { backendUrl, userData } = useContext(Appcontext)
+  const navigate = useNavigate()
   const [appointments, setAppointments] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -40,6 +42,12 @@ const Schedule = () => {
           return prev.filter(a => a._id !== updated._id)
         })
       })
+
+      socket.on('rescheduleProposed', (data) => {
+        console.log('Received rescheduleProposed:', data)
+        // Refresh appointments to get the latest data
+        fetchAppointments()
+      })
     } catch (e) {
       console.warn('Socket init failed in Schedule', e)
     }
@@ -49,8 +57,15 @@ const Schedule = () => {
     }
   }, [backendUrl, userData])
 
+  // Helper function to get the display date (proposed if exists, otherwise original)
+  const getDisplayDateTime = (appointment) => {
+    return appointment.proposedDateTime || appointment.dateTime
+  }
+
   // Sort appointments by date
-  const sortedAppointments = [...appointments].sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime))
+  const sortedAppointments = [...appointments].sort((a, b) => 
+    new Date(getDisplayDateTime(a)) - new Date(getDisplayDateTime(b))
+  )
 
   return (
     <div className='min-h-screen bg-brownBG flex flex-col'>
@@ -100,14 +115,25 @@ const Schedule = () => {
                                 </svg>
                               </div>
                             )}
-                            <div>
+                            <div className='flex-1'>
                               <p className='text-lg font-semibold text-gray-900'>{app.client?.userName || 'Client'}</p>
                               <div className='flex items-center gap-2 mt-2 text-gray-600'>
                                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                 </svg>
-                                <span className='text-sm'>{new Date(app.dateTime).toLocaleString()}</span>
+                                <span className='text-sm'>{new Date(getDisplayDateTime(app)).toLocaleString()}</span>
                               </div>
+                              {app.proposedDateTime && (
+                                <div className='mt-2 flex items-center gap-2 text-orange-600 text-sm'>
+                                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                  <span className="font-medium">Rescheduled Time</span>
+                                </div>
+                              )}
+                              {app.rescheduleReason && (
+                                <p className='text-sm text-gray-500 mt-1 italic'>Reason: "{app.rescheduleReason}"</p>
+                              )}
                               {app.notes && (
                                 <div className='flex items-start gap-2 mt-2 text-gray-500'>
                                   <svg className="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">

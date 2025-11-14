@@ -11,13 +11,14 @@ import authRoutes from "../routes/auth.route.js";
 import lawRoutes from "../routes/law.routes.js";
 import appointmentRoutes from "../routes/appointment.route.js";
 import chatRoutes from "../routes/chat.route.js";
-import { initSocket } from "../src/socket.js";
+import feedbackRoutes from "../routes/feedback.route.js";
+import notificationRoutes from "../routes/notification.route.js";
 
-
+// Load environment variables
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || 5000;
 const server = http.createServer(app);
 
 // ✅ CORS configuration to allow credentials
@@ -26,7 +27,7 @@ app.use(cors({
     origin: FRONTEND_URL,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'Accept']
 }));
 
 
@@ -48,14 +49,19 @@ app.use("/api/auth", authRoutes);
 app.use("/api/law", lawRoutes);
 app.use("/api/appointment", appointmentRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/feedback", feedbackRoutes);
+app.use("/api/notifications", notificationRoutes);
 
-initSocket(server);
+// Initialize socket.io
+import { initSocket } from './socket.js';
+const io = initSocket(server);
 
+// Connect to database and start server
 connectDB().then(() => {
-  app.listen(PORT, () => {
-    console.log("Server started on PORT:", PORT);
-  });
-});
-server.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+    server.listen(PORT, () => {
+        console.log(`Server and Socket.IO are running on port ${PORT}`);
+    });
+}).catch(err => {
+    console.error('Failed to connect to MongoDB:', err);
+    process.exit(1);
 });

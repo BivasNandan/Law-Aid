@@ -15,6 +15,7 @@ const LawyerProfile = () => {
   const [notFound, setNotFound] = useState(false)
   const [errorMessage, setErrorMessage] = useState(null)
   const [appointmentStatus, setAppointmentStatus] = useState(null)
+  const [feedbacks, setFeedbacks] = useState([])
   const navigate = useNavigate()
 
   const getProfilePicUrl = (pic) => {
@@ -104,6 +105,16 @@ const LawyerProfile = () => {
         if (userData) checkAppointment()
       })
     }
+    // fetch feedbacks for this lawyer after lawyer is loaded
+    const fetchFeedbacks = async (lawyerId) => {
+      try {
+        const res = await axios.get(`${backendUrl}/api/feedback/lawyer/${lawyerId}`)
+        setFeedbacks(res.data.feedbacks || [])
+      } catch (err) {
+        console.warn('Failed to fetch feedbacks', err)
+      }
+    }
+    if (lawyer && lawyer._id) fetchFeedbacks(lawyer._id)
   }, [backendUrl, userName, userData, lawyer])
 
   if (loading) {
@@ -378,6 +389,44 @@ const LawyerProfile = () => {
             </button>
           )}
         </div>
+        </div>
+      </div>
+
+      {/* Feedbacks / Reviews */}
+      <div className='max-w-5xl mx-auto mt-6 px-4'>
+        <div className='bg-white rounded-lg shadow-lg border border-brown p-6'>
+          <h3 className='text-xl font-bold text-brownBG mb-4'>Client Feedback</h3>
+          {feedbacks.length === 0 ? (
+            <p className='text-browntextcolor'>No feedback yet. Be the first to review this lawyer.</p>
+          ) : (
+            <div className='space-y-4'>
+              {feedbacks.slice(0, 8).map(f => (
+                <div key={f._id} className='border rounded-lg p-4 bg-AboutBackgroudColor'>
+                  <div className='flex items-center justify-between'>
+                    <div className='flex items-center gap-3'>
+                      <div className='w-10 h-10 rounded-full bg-white flex items-center justify-center text-brown2 font-semibold'>
+                        {f.client?.userName ? f.client.userName.charAt(0).toUpperCase() : 'U'}
+                      </div>
+                      <div>
+                        <div className='text-sm font-semibold text-brownBG'>{f.client?.userName || 'Client'}</div>
+                        <div className='text-xs text-browntextcolor'>{new Date(f.createdAt).toLocaleDateString()}</div>
+                      </div>
+                    </div>
+                    <div className='text-sm font-semibold text-brownBG' aria-label={`${f.rating} out of 5 stars`}>
+                      <div className='flex items-center gap-1'>
+                        {[1,2,3,4,5].map(i => (
+                          <svg key={i} className={`w-4 h-4 ${i <= f.rating ? 'text-yellow-400' : 'text-gray-300'}`} viewBox="0 0 20 20" fill={i <= f.rating ? 'currentColor' : 'none'} stroke={i <= f.rating ? 'none' : 'currentColor'}>
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.957a1 1 0 00.95.69h4.162c.969 0 1.371 1.24.588 1.81l-3.37 2.448a1 1 0 00-.364 1.118l1.287 3.957c.3.921-.755 1.688-1.54 1.118l-3.37-2.448a1 1 0 00-1.175 0l-3.37 2.448c-.784.57-1.838-.197-1.539-1.118l1.286-3.957a1 1 0 00-.364-1.118L2.07 9.384c-.783-.57-.38-1.81.588-1.81h4.162a1 1 0 00.95-.69l1.286-3.957z" />
+                          </svg>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  {f.comment && <p className='mt-3 text-browntextcolor'>{f.comment}</p>}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
       <Footer />

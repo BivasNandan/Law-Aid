@@ -14,9 +14,9 @@ const ClientDetails = () => {
   })
   const [preview, setPreview] = useState(null)
   const [loading, setLoading] = useState(false)
-  const fileInputRef = useRef(null) // Add this ref
+  const fileInputRef = useRef(null)
   const navigate = useNavigate()
-  const { backendUrl } = useContext(Appcontext)
+  const { backendUrl, setUserData } = useContext(Appcontext)
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -25,7 +25,7 @@ const ClientDetails = () => {
 
   const handleFileChange = (e) => {
     const file = e.target.files[0]
-    console.log('File selected:', file) // For debugging
+    console.log('File selected:', file)
     
     if (file) {
       // Validate file type
@@ -63,14 +63,15 @@ const ClientDetails = () => {
       data.append('phone', formData.phone || '')
       data.append('age', formData.age || '')
       
-      // IMPORTANT: Only append if file exists
+      // ✅ FIX: Append profilePic to match backend expectations
       if (formData.profilePic) {
         data.append('profilePic', formData.profilePic)
-        console.log('Uploading with image')
+        console.log('Uploading with image:', formData.profilePic.name)
       } else {
         console.log('Uploading without image')
       }
 
+      // Can use either POST or PATCH depending on your backend route
       const response = await axios.patch(
         `${backendUrl}/api/auth/set-client-additional-info`,
         data,
@@ -82,11 +83,29 @@ const ClientDetails = () => {
         }
       )
 
-      console.log('Profile update response:', response.data)
+      console.log('✅ Profile update response:', response.data)
+      
+      // ✅ FIX: Update Appcontext so navbar/profile updates immediately
+      if (response.data?.user) {
+        setUserData(response.data.user)
+        console.log('✅ User data updated in context:', response.data.user)
+        
+        // Update preview with server URL if profile pic exists
+        if (response.data.user.profilePic?.path) {
+          const picPath = response.data.user.profilePic.path.replace(/\\/g, '/')
+          const idx = picPath.indexOf('uploads/')
+          const finalUrl = idx !== -1 
+            ? `${backendUrl}/${picPath.slice(idx)}` 
+            : `${backendUrl}/uploads/profilePics/${response.data.user.profilePic.filename}`
+          setPreview(finalUrl)
+          console.log('✅ Profile pic URL:', finalUrl)
+        }
+      }
+      
       toast.success('Profile completed successfully!')
       navigate('/')
     } catch (error) {
-      console.error('Profile update error:', error)
+      console.error('❌ Profile update error:', error)
       toast.error(error.response?.data?.message || 'Failed to update profile')
     } finally {
       setLoading(false)
@@ -114,7 +133,7 @@ const ClientDetails = () => {
                     onClick={() => {
                       setPreview(null)
                       setFormData(prev => ({ ...prev, profilePic: null }))
-                      fileInputRef.current.value = ''
+                      if (fileInputRef.current) fileInputRef.current.value = ''
                     }}
                     className='absolute top-0 right-0 bg-red-500 hover:bg-red-600 text-white rounded-full p-1'
                   >

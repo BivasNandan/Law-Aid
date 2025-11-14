@@ -11,7 +11,7 @@ const SignupPage = () => {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
-  const { backendUrl, setUserData } = useContext(Appcontext) // Remove setToken
+  const { backendUrl, setUserData } = useContext(Appcontext)
 
   const validatePassword = (pass) => {
     return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(pass)
@@ -45,19 +45,30 @@ const SignupPage = () => {
       
       console.log('✅ Signup successful:', res.data)
       
-      // Only set user data - the token is automatically stored in HTTP-only cookies
-      // Don't call setToken - we don't store token in frontend state
-      setUserData({
-        _id: res.data.userId,
-        userName: userName,
-        role: res.data.role
-      })
-      
-      // Get selected role for navigation
-      const role = localStorage.getItem('selectedRole')
-      
+      // ✅ FIX: Server returns full user object; use it to populate Appcontext
+      if (res.data?.user) {
+        setUserData(res.data.user)
+        console.log('✅ User data set in context:', res.data.user)
+      } else {
+        // Fallback to minimal data if server didn't return full user
+        setUserData({ _id: res.data.userId, userName, role: res.data.role })
+      }
+
+      // Determine role for navigation
+      const role = res.data?.user?.role || res.data?.role
+
       toast.success('Account created! Now complete your profile')
-      navigate(role === 'lawyer' ? '/lawyer-details' : '/client-details')
+      
+      // Navigate to details page based on role
+      if (role === 'lawyer') {
+        navigate('/lawyer-details')
+      } else if (role === 'client') {
+        navigate('/client-details')
+      } else {
+        // Fallback: if role is somehow missing, go to home
+        console.error('⚠️ Role not found in response')
+        navigate('/')
+      }
     } catch (error) {
       console.error('❌ Signup error:', error)
       toast.error(error.response?.data?.message || 'Signup failed')

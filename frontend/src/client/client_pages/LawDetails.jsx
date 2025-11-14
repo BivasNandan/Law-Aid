@@ -114,7 +114,7 @@ const LawDetails = () => {
           {/* Main Content Column */}
           <div className='lg:col-span-2'>
             {/* Definition/Description Card */}
-            <div className='bg-white rounded-lg shadow-lg p-8 border-l-4 border-brownBG mb-8'>
+              <div className='bg-creamcolor rounded-2xl shadow-xl p-8 border-2 border-brown mb-8'>
               <h2 className='text-2xl font-bold text-brownBG mb-4 flex items-center gap-3 font-inria'>
                 <span className='text-3xl'>📜</span>
                 Legal Definition
@@ -128,7 +128,7 @@ const LawDetails = () => {
 
             {/* Bangla Explanation if available */}
             {law.banglaExplanation && (
-              <div className='bg-white rounded-lg shadow-lg p-8 border-l-4 border-brownBG mb-8'>
+            <div className='bg-creamcolor rounded-2xl shadow-xl p-8 border-2 border-brown mb-8'>
                 <h2 className='text-2xl font-bold text-brownBG mb-4 flex items-center gap-3 font-inria'>
                   <span className='text-3xl'>📖</span>
                   বাংলা ব্যাখ্যা
@@ -142,7 +142,7 @@ const LawDetails = () => {
             )}
 
             {/* Additional Information */}
-            <div className='bg-white rounded-lg shadow-lg p-8 border-l-4 border-brownBG'>
+              <div className='bg-creamcolor rounded-2xl shadow-xl p-8 border-2 border-brown'>
               <h2 className='text-2xl font-bold text-brownBG mb-4 flex items-center gap-3 font-inria'>
                 <span className='text-3xl'>ℹ️</span>
                 Additional Information
@@ -169,29 +169,29 @@ const LawDetails = () => {
           {/* Sidebar */}
           <div className='lg:col-span-1'>
             {/* Quick Info Card */}
-            <div className='bg-white rounded-lg shadow-lg p-6 mb-6 sticky top-6'>
+              <div className='bg-creamcolor rounded-2xl shadow-xl p-6 mb-6 sticky top-24 border-2 border-brown'>
               <h3 className='text-xl font-bold text-brownBG mb-4 pb-3 border-b-2 border-brownBG font-inria'>
                 Quick Information
               </h3>
               
               <div className='space-y-4'>
                 <div>
-                  <p className='text-xs font-semibold text-browntextcolor uppercase tracking-wider mb-1 font-inria'>Category</p>
+                    <p className='text-xs font-semibold text-browntextcolor/70 uppercase tracking-wider mb-1 font-inria'>Category</p>
                   <p className='text-base font-bold text-brownBG capitalize font-inria'>{law.category || 'General'}</p>
                 </div>
 
                 <div>
-                  <p className='text-xs font-semibold text-browntextcolor uppercase tracking-wider mb-1 font-inria'>Code Number</p>
+                    <p className='text-xs font-semibold text-browntextcolor/70 uppercase tracking-wider mb-1 font-inria'>Code Number</p>
                   <p className='text-base font-mono font-bold text-brown2'>#{law.codeNumber}</p>
                 </div>
 
                 <div>
-                  <p className='text-xs font-semibold text-browntextcolor uppercase tracking-wider mb-1 font-inria'>Enacted Year</p>
+                    <p className='text-xs font-semibold text-browntextcolor/70 uppercase tracking-wider mb-1 font-inria'>Enacted Year</p>
                   <p className='text-base font-bold text-brownBG font-inria'>{new Date(law.createdAt).getFullYear()}</p>
                 </div>
 
                 <div>
-                  <p className='text-xs font-semibold text-browntextcolor uppercase tracking-wider mb-1 font-inria'>Verification Status</p>
+                    <p className='text-xs font-semibold text-browntextcolor/70 uppercase tracking-wider mb-1 font-inria'>Verification Status</p>
                   <div className='flex items-center gap-2'>
                     {law.isVerified ? (
                       <>

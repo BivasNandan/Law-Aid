@@ -152,7 +152,7 @@ const Book_appointment = () => {
                 <div className='flex items-start gap-3'>
                   <div className='w-10 h-10 bg-AboutBackgroudColor rounded-lg flex items-center justify-center flex-shrink-0 border border-brown'>
                     <svg className='w-5 h-5 text-brown2' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
-                      <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M21 13.255A23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' />
+                      <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z' />
                     </svg>
                   </div>
                   <div>
@@ -250,7 +250,25 @@ const Book_appointment = () => {
                   </label>
                   <input 
                     value={dateTime} 
-                    onChange={(e) => setDateTime(e.target.value)}
+                    onChange={(e) => {
+                      const selectedDate = new Date(e.target.value);
+                      const now = new Date();
+                      
+                      // Set today to start of day for comparison
+                      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                      const selectedDay = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+                      
+                      // If selected date is before today
+                      if (selectedDay < today) {
+                        // Create new date with next year but keep month, day, and time
+                        const adjustedDate = new Date(selectedDate);
+                        adjustedDate.setFullYear(selectedDate.getFullYear() + 1);
+                        setDateTime(adjustedDate.toISOString().slice(0, 16));
+                        toast.success('Date automatically adjusted to next year as you selected a past date');
+                      } else {
+                        setDateTime(e.target.value);
+                      }
+                    }}
                     type='datetime-local'
                     required
                     className='w-full px-4 py-3 border-2 border-brown rounded-xl focus:outline-none focus:border-brown2 transition-colors text-brownBG bg-AboutBackgroudColor font-inria'
@@ -259,7 +277,7 @@ const Book_appointment = () => {
                     <svg className='w-4 h-4' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
                       <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' />
                     </svg>
-                    Select your preferred consultation date and time
+                    Select your preferred consultation date and time. Past dates will be automatically scheduled for next year.
                   </p>
                 </div>
 

@@ -23,13 +23,6 @@ const LawForm = () => {
     isVerified: true
   })
 
-  // Fetch law data if updating
-  useEffect(() => {
-    if (id) {
-      fetchLawData()
-    }
-  }, [id])
-
   const fetchLawData = async () => {
     try {
       setLoading(true)
@@ -56,6 +49,14 @@ const LawForm = () => {
       setLoading(false)
     }
   }
+
+  // Fetch law data if updating
+  useEffect(() => {
+    if (id) {
+      fetchLawData()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id])
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target
@@ -119,81 +120,163 @@ const LawForm = () => {
   }
 
   return (
-    <div className="min-h-screen bg-AboutBackgroudColor py-12">
+    <div className="min-h-screen bg-AboutBackgroudColor">
       <Navbar />
-      <div className="max-w-4xl mx-auto px-6 mt-8">
-        {/* Header */}
-        <div className="bg-white rounded-lg shadow-lg border border-brown p-8 mb-8">
-          <h1 className="text-4xl font-bold text-brownBG mb-2 font-inria">
+      
+      {/* Hero Section */}
+      <div className="bg-brownBG text-white pt-32 pb-16">
+        <div className="max-w-4xl mx-auto px-6 text-center">
+          <h1 className="text-5xl font-bold mb-4 font-inria">
             {id ? 'Update Law' : 'Add New Law'}
           </h1>
-          <p className="text-browntextcolor font-inria">
+          <p className="text-xl text-white/80 font-inria max-w-2xl mx-auto">
             {id ? 'Update the law information below' : 'Fill in the details to add a new law to the database'}
           </p>
         </div>
+      </div>
+
+      <div className="max-w-4xl mx-auto px-6 py-16">
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-lg border border-brown p-8">
-          <div className="space-y-6">
+        <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-2xl border border-brown p-8 mb-16">
+          <div className="space-y-8">
             {/* Code Number and Category Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-semibold text-brownBG mb-2 font-inria">Code Number</label>
-                <input name="codeNumber" value={formData.codeNumber} onChange={handleChange} className="w-full px-4 py-2 border rounded" placeholder="e.g. 420 or Section 5" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="form-group">
+                <label className="block text-lg font-semibold text-brownBG mb-3 font-inria">Code Number</label>
+                <input 
+                  name="codeNumber" 
+                  value={formData.codeNumber} 
+                  onChange={handleChange} 
+                  className="w-full px-4 py-3 border-2 border-brown rounded-lg focus:outline-none focus:ring-2 focus:ring-brownBG focus:border-brownBG transition-all duration-200" 
+                  placeholder="e.g. 420 or Section 5" 
+                />
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-brownBG mb-2 font-inria">Category</label>
-                <select name="category" value={formData.category} onChange={handleChange} className="w-full px-4 py-2 border rounded">
-                  <option value="criminal">Criminal</option>
-                  <option value="civil">Civil</option>
-                  <option value="family">Family</option>
-                  <option value="cyber">Cyber</option>
-                  <option value="property">Property</option>
-                  <option value="labour">Labour</option>
-                  <option value="public">Public</option>
+              <div className="form-group">
+                <label className="block text-lg font-semibold text-brownBG mb-3 font-inria">Category</label>
+                <select 
+                  name="category" 
+                  value={formData.category} 
+                  onChange={handleChange} 
+                  className="w-full px-4 py-3 border-2 border-brown rounded-lg focus:outline-none focus:ring-2 focus:ring-brownBG focus:border-brownBG appearance-none bg-white transition-all duration-200"
+                >
+                  <option value="criminal">Criminal Law</option>
+                  <option value="civil">Civil Law</option>
+                  <option value="family">Family Law</option>
+                  <option value="cyber">Cyber Law</option>
+                  <option value="property">Property Law</option>
+                  <option value="labour">Labour Law</option>
+                  <option value="public">Public Law</option>
                   <option value="other">Other</option>
                 </select>
               </div>
             </div>
 
             {/* Title */}
-            <div>
-              <label className="block text-sm font-semibold text-brownBG mb-2 font-inria">Title</label>
-              <input name="title" value={formData.title} onChange={handleChange} className="w-full px-4 py-3 border rounded" placeholder="Law title" />
+            <div className="form-group">
+              <label className="block text-lg font-semibold text-brownBG mb-3 font-inria">Title</label>
+              <input 
+                name="title" 
+                value={formData.title} 
+                onChange={handleChange} 
+                className="w-full px-4 py-3 border-2 border-brown rounded-lg focus:outline-none focus:ring-2 focus:ring-brownBG focus:border-brownBG transition-all duration-200" 
+                placeholder="Enter the law title" 
+              />
             </div>
 
             {/* Official text */}
-            <div>
-              <label className="block text-sm font-semibold text-brownBG mb-2 font-inria">Official Text (optional)</label>
-              <textarea name="officialText" value={formData.officialText} onChange={handleChange} className="w-full px-4 py-3 border rounded" rows={4} placeholder="Full official wording or a short excerpt" />
+            <div className="form-group">
+              <label className="block text-lg font-semibold text-brownBG mb-3 font-inria">Official Text (optional)</label>
+              <textarea 
+                name="officialText" 
+                value={formData.officialText} 
+                onChange={handleChange} 
+                className="w-full px-4 py-3 border-2 border-brown rounded-lg focus:outline-none focus:ring-2 focus:ring-brownBG focus:border-brownBG transition-all duration-200 min-h-[120px] resize-y" 
+                placeholder="Full official wording or a short excerpt" 
+              />
             </div>
 
             {/* Definition / Bangla / English explanations */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-semibold text-brownBG mb-2 font-inria">Definition / Summary</label>
-                <textarea name="definition" value={formData.definition} onChange={handleChange} className="w-full px-4 py-3 border rounded" rows={6} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-8">
+                <div className="form-group">
+                  <label className="block text-lg font-semibold text-brownBG mb-3 font-inria">Definition / Summary</label>
+                  <textarea 
+                    name="definition" 
+                    value={formData.definition} 
+                    onChange={handleChange} 
+                    className="w-full px-4 py-3 border-2 border-brown rounded-lg focus:outline-none focus:ring-2 focus:ring-brownBG focus:border-brownBG transition-all duration-200 min-h-[180px] resize-y" 
+                    placeholder="Provide a clear and concise definition"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-brownBG mb-2 font-inria">Bangla Explanation</label>
-                <textarea name="banglaExplanation" value={formData.banglaExplanation} onChange={handleChange} className="w-full px-4 py-3 border rounded mb-4" rows={6} />
-                <label className="block text-sm font-semibold text-brownBG mb-2 font-inria">English Explanation</label>
-                <textarea name="englishExplanation" value={formData.englishExplanation} onChange={handleChange} className="w-full px-4 py-3 border rounded" rows={4} />
+              <div className="space-y-8">
+                <div className="form-group">
+                  <label className="block text-lg font-semibold text-brownBG mb-3 font-inria">Bangla Explanation</label>
+                  <textarea 
+                    name="banglaExplanation" 
+                    value={formData.banglaExplanation} 
+                    onChange={handleChange} 
+                    className="w-full px-4 py-3 border-2 border-brown rounded-lg focus:outline-none focus:ring-2 focus:ring-brownBG focus:border-brownBG transition-all duration-200 min-h-[180px] resize-y" 
+                    placeholder="বাংলা ব্যাখ্যা"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="block text-lg font-semibold text-brownBG mb-3 font-inria">English Explanation</label>
+                  <textarea 
+                    name="englishExplanation" 
+                    value={formData.englishExplanation} 
+                    onChange={handleChange} 
+                    className="w-full px-4 py-3 border-2 border-brown rounded-lg focus:outline-none focus:ring-2 focus:ring-brownBG focus:border-brownBG transition-all duration-200 min-h-[120px] resize-y" 
+                    placeholder="Simplified English explanation"
+                  />
+                </div>
               </div>
             </div>
 
             {/* Verification checkbox (show only to admin) */}
             {userData?.role === 'admin' && (
-              <div className="flex items-center gap-3">
-                <input name="isVerified" checked={Boolean(formData.isVerified)} onChange={handleChange} type="checkbox" id="isVerified" />
-                <label htmlFor="isVerified" className="text-sm text-browntextcolor">Mark as verified (admin only)</label>
+              <div className="flex items-center gap-3 border-t border-brown pt-6">
+                <input 
+                  name="isVerified" 
+                  checked={formData.isVerified === true || formData.isVerified === 'true'} 
+                  onChange={handleChange} 
+                  type="checkbox" 
+                  id="isVerified"
+                  className="w-5 h-5 text-brownBG border-2 border-brown rounded focus:ring-brownBG" 
+                />
+                <label htmlFor="isVerified" className="text-lg text-browntextcolor font-inria">
+                  Mark as verified (admin only)
+                </label>
               </div>
             )}
 
             {/* Actions */}
-            <div className="flex items-center justify-end gap-3">
-              <button type="button" onClick={handleCancel} className="px-4 py-2 border rounded">Cancel</button>
-              <button type="submit" disabled={loading} className="px-4 py-2 bg-brownBG text-creamcolor rounded font-semibold">{loading ? (id ? 'Updating...' : 'Creating...') : (id ? 'Update Law' : 'Create Law')}</button>
+            <div className="flex items-center justify-end gap-4 border-t border-brown pt-8">
+              <button 
+                type="button" 
+                onClick={handleCancel} 
+                className="px-8 py-3 border-2 border-brown text-brownBG hover:bg-brown2 rounded-lg font-semibold transition-all duration-200"
+              >
+                Cancel
+              </button>
+              <button 
+                type="submit" 
+                disabled={loading} 
+                className="px-8 py-3 bg-brownBG hover:bg-brownforhover text-white rounded-lg font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+              >
+                {loading ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    {id ? 'Updating...' : 'Creating...'}
+                  </span>
+                ) : (
+                  id ? 'Update Law' : 'Create Law'
+                )}
+              </button>
             </div>
           </div>
         </form>

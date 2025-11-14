@@ -28,21 +28,24 @@ export const AppcontextProvider = ({ children }) => {
   useEffect(() => {
     const fetchFullUser = async () => {
       if (!userData || !userData._id) return
-      // If profilePic already present, assume full object
-      if (userData.profilePic && userData.email) return
+      // If both profilePic and email exist, assume full object already loaded
+      if (userData.profilePic !== undefined && userData.email) return
 
       try {
         const route = userData.role === 'lawyer' ? 'lawyer-by-id' : 'client-by-id'
         const res = await axios.get(`${backendUrl}/api/auth/${route}/${userData._id}`, { withCredentials: true })
         if (res && res.data) {
-          setUserData(res.data)
+          // Only update if profilePic was missing (to avoid unnecessary updates)
+          if (!userData.profilePic) {
+            setUserData(res.data)
+          }
         }
       } catch (err) {
         console.error('Failed to fetch full user in Appcontext:', err)
       }
     }
     fetchFullUser()
-  }, [userData, backendUrl])
+  }, [userData?._id, backendUrl]) // Only trigger when userId or backend changes
 
   // Sync userData and token with localStorage
   useEffect(() => {

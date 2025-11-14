@@ -20,13 +20,14 @@ const SearchLaw = () => {
   const [categories, setCategories] = useState([])
   const [codes, setCodes] = useState([])
 
-  useEffect(() => {
-    loadInitial()
-  }, [])
-
   const loadInitial = async () => {
     await Promise.all([fetchLaws(), fetchCategories(), fetchCodes()])
   }
+
+  useEffect(() => {
+    loadInitial()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Fetch all laws using getLaw endpoint
   const fetchLaws = async () => {

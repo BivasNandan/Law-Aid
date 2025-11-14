@@ -4,7 +4,7 @@ import axios from 'axios'
 import { toast } from 'react-hot-toast'
 import { Appcontext } from '../../lib/Appcontext'
 
-const LawyerDetails= () => {
+const LawyerDetails = () => {
   const [formData, setFormData] = useState({
     specialization: '',
     licenseNo: '',
@@ -21,7 +21,7 @@ const LawyerDetails= () => {
   const profilePicRef = useRef(null)
   const resumeRef = useRef(null)
   const navigate = useNavigate()
-  const { backendUrl } = useContext(Appcontext)
+  const { backendUrl, setUserData } = useContext(Appcontext)
 
   const specializations = [
     "Civil Law", "Criminal Law", "Family Law", "Corporate & Commercial Law",
@@ -89,14 +89,17 @@ const LawyerDetails= () => {
       data.append('phone', formData.phone || '')
       data.append('age', formData.age || '')
 
-      // Append files only if they exist
+      // ✅ FIX: Append files only if they exist
       if (formData.profilePic) {
         data.append('profilePic', formData.profilePic)
+        console.log('Uploading with profile pic:', formData.profilePic.name)
       }
       if (formData.resume) {
         data.append('resume', formData.resume)
+        console.log('Uploading with resume:', formData.resume.name)
       }
 
+      // Send as PATCH to match backend route
       const response = await axios.patch(
         `${backendUrl}/api/auth/set-lawyer-additional-info`,
         data,
@@ -108,10 +111,29 @@ const LawyerDetails= () => {
         }
       )
 
+      console.log('✅ Profile update response:', response.data)
+
+      // ✅ FIX: Update Appcontext so navbar/profile updates immediately
+      if (response.data?.user) {
+        setUserData(response.data.user)
+        console.log('✅ User data updated in context:', response.data.user)
+        
+        // Update preview with server URL if profile pic exists
+        if (response.data.user.profilePic?.path) {
+          const picPath = response.data.user.profilePic.path.replace(/\\/g, '/')
+          const idx = picPath.indexOf('uploads/')
+          const finalUrl = idx !== -1 
+            ? `${backendUrl}/${picPath.slice(idx)}` 
+            : `${backendUrl}/uploads/profilePics/${response.data.user.profilePic.filename}`
+          setPreview(finalUrl)
+          console.log('✅ Profile pic URL:', finalUrl)
+        }
+      }
+
       toast.success('Profile completed successfully!')
       navigate('/')
     } catch (error) {
-      console.error('Profile update error:', error)
+      console.error('❌ Profile update error:', error)
       toast.error(error.response?.data?.message || 'Failed to update profile')
     } finally {
       setLoading(false)
@@ -139,7 +161,7 @@ const LawyerDetails= () => {
                     onClick={() => {
                       setPreview(null)
                       setFormData(prev => ({ ...prev, profilePic: null }))
-                      profilePicRef.current.value = ''
+                      if (profilePicRef.current) profilePicRef.current.value = ''
                     }}
                     className='absolute top-0 right-0 bg-red-500 hover:bg-red-600 text-white rounded-full p-1'
                   >

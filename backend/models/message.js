@@ -16,6 +16,8 @@ const messageSchema = new mongoose.Schema({
   text: { type: String, trim: true },
   attachments: [attachmentSchema],
   status: { type: String, enum: ["sent", "delivered", "read"], default: "sent" },
+  edited: { type: Boolean, default: false },
+  editedAt: { type: Date, default: null },
 }, { timestamps: true });
 
 messageSchema.index({ conversation: 1, createdAt: -1 });

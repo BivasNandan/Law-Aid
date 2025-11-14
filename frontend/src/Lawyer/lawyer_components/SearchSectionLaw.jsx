@@ -149,6 +149,9 @@ const SearchSectionLaw = () => {
         // Remove from both arrays
         setLaws(prev => prev.filter(l => l._id !== lawId))
         setFiltered(prev => prev.filter(l => l._id !== lawId))
+        
+        // Refresh categories and codes dropdowns to reflect deletion
+        await Promise.all([fetchCategories(), fetchCodes()])
       }
     } catch (err) {
       console.error('Delete failed', err)
@@ -175,98 +178,86 @@ const SearchSectionLaw = () => {
 
   return (
     <div>
-      {/* Hero Section with Search */}
-      <div className="relative text-creamcolor py-20">
-        {/* Background image */}
-        <div
-          className="absolute inset-0 -z-20"
-          style={{ 
-            backgroundImage: `url(${law4})`, 
-            backgroundRepeat: 'no-repeat', 
-            backgroundPosition: 'center', 
-            backgroundSize: 'cover' 
-          }}
-        />
-        {/* Dark overlay for contrast */}
-        <div className="absolute inset-0 -z-10" style={{ backgroundColor: 'rgba(0,0,0,0.45)' }} />
+      {/* Redesigned Hero Section with Search */}
+      <div className="relative text-creamcolor">
+        <div className='bg-gradient-to-r from-brownBG to-brown2 text-white py-14 md:py-20 lg:py-24 relative overflow-hidden'>
+          <div className='absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full -mr-20 -mt-20'></div>
+          <div className='absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full -ml-16 -mb-16'></div>
 
-        <div className="max-w-7xl mx-auto px-6">
-          {/* Title */}
-          <div className="text-center mb-12">
-            <h1 className="text-5xl font-bold mb-2 font-inria">MANAGE LAWS</h1>
-            <p className="text-lg font-inria">Add, Update, Delete and Search Laws</p>
-          </div>
+          <div className='max-w-7xl mx-auto px-6'>
+            <div className='text-center mb-6'>
+              <h1 className='text-4xl md:text-5xl lg:text-6xl font-bold mb-2 font-inria'>MANAGE LAWS</h1>
+              <p className='text-md md:text-lg text-brown mt-2'>Add, Update, Delete and Search Laws</p>
+            </div>
 
-          {/* Search Form - Horizontal layout */}
-          <div className="max-w-5xl mx-auto">
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-              {/* Search Term */}
-              <div className="md:col-span-1">
-                <label className="block text-sm mb-2 font-inria">Search</label>
-                <input 
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                  placeholder="Keywords..."
-                  className="w-full px-4 py-3 rounded bg-creamcolor text-brownBG focus:outline-none focus:ring-2 focus:ring-brown2 font-inria border border-brown"
-                />
-              </div>
+            {/* Search controls (no background card) */}
+            <div className='max-w-5xl mx-auto -mt-4'>
+              <div className='p-2 md:p-3'>
+                <div className='grid grid-cols-1 md:grid-cols-5 gap-4 items-end'>
+                  <div className='md:col-span-1'>
+                    <label className='block text-sm mb-2 font-inria text-white'>Search</label>
+                    <input 
+                      type='text'
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                      placeholder='Keywords...'
+                      className='w-full px-4 py-3 rounded-lg bg-white text-brownBG focus:outline-none focus:ring-2 focus:ring-brown2 font-inria border border-brown'
+                    />
+                  </div>
 
-              {/* Category select */}
-              <div className="md:col-span-1">
-                <label className="block text-sm mb-2 font-inria">Category</label>
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className="w-full px-4 py-3 rounded bg-creamcolor text-brownBG focus:outline-none focus:ring-2 focus:ring-brown2 font-inria border border-brown"
-                >
-                  <option value="">All Categories</option>
-                  {categories.map((c) => (
-                    <option key={c} value={c}>
-                      {String(c).charAt(0).toUpperCase() + String(c).slice(1)}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                  <div className='md:col-span-1'>
+                    <label className='block text-sm mb-2 font-inria text-white'>Category</label>
+                    <select
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                      className='w-full px-4 py-3 rounded-lg bg-white text-brownBG focus:outline-none focus:ring-2 focus:ring-brown2 font-inria border border-brown'
+                    >
+                      <option value=''>All Categories</option>
+                      {categories.map((c) => (
+                        <option key={c} value={c}>
+                          {String(c).charAt(0).toUpperCase() + String(c).slice(1)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-              {/* Code Number select */}
-              <div className="md:col-span-1">
-                <label className="block text-sm mb-2 font-inria">Code Number</label>
-                <select
-                  value={codeNumber}
-                  onChange={(e) => setCodeNumber(e.target.value)}
-                  className="w-full px-4 py-3 rounded bg-creamcolor text-brownBG focus:outline-none focus:ring-2 focus:ring-brown2 font-inria border border-brown"
-                >
-                  <option value="">All Codes</option>
-                  {codes.map((cn) => (
-                    <option key={cn} value={cn}>{cn}</option>
-                  ))}
-                </select>
-              </div>
+                  <div className='md:col-span-1'>
+                    <label className='block text-sm mb-2 font-inria text-white'>Code Number</label>
+                    <select
+                      value={codeNumber}
+                      onChange={(e) => setCodeNumber(e.target.value)}
+                      className='w-full px-4 py-3 rounded-lg bg-white text-brownBG focus:outline-none focus:ring-2 focus:ring-brown2 font-inria border border-brown'
+                    >
+                      <option value=''>All Codes</option>
+                      {codes.map((cn) => (
+                        <option key={cn} value={cn}>{cn}</option>
+                      ))}
+                    </select>
+                  </div>
 
-              {/* Search Button */}
-              <div className="md:col-span-1 flex items-end">
-                <button 
-                  onClick={handleSearch}
-                  disabled={loading}
-                  className="w-full bg-browntextcolor hover:bg-brownforhover text-creamcolor font-semibold py-3 px-6 rounded transition-all duration-200 disabled:opacity-50 font-inria"
-                >
-                  {loading ? 'Searching...' : 'Search'}
-                </button>
-              </div>
+                  <div className='md:col-span-1 flex items-end'>
+                    <button 
+                      onClick={handleSearch}
+                      disabled={loading}
+                      className='w-full bg-browntextcolor hover:bg-brownforhover text-creamcolor font-semibold py-3 px-6 rounded-lg transition-all duration-200 disabled:opacity-50 font-inria'
+                    >
+                      {loading ? 'Searching...' : 'Search'}
+                    </button>
+                  </div>
 
-              {/* Add Law Button */}
-              <div className="md:col-span-1 flex items-end">
-                <button 
-                  onClick={handleAddLaw}
-                  className="w-full bg-green-700 hover:bg-green-800 text-white font-semibold py-3 px-6 rounded transition-all duration-200 font-inria flex items-center justify-center gap-2"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                  Add Law
-                </button>
+                  <div className='md:col-span-1 flex items-end'>
+                    <button 
+                      onClick={handleAddLaw}
+                      className='w-full  bg-browntextcolor hover:bg-brownforhover text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 font-inria flex items-center justify-center gap-2'
+                    >
+                      <svg className='w-5 h-5' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                        <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M12 4v16m8-8H4' />
+                      </svg>
+                      Add Law
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

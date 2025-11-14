@@ -1,13 +1,14 @@
 import express from "express";
 
-import { createAppointment, deleteAppointment, viewMyAppointmentsById, updateAppointmentStatus } from "../controllers/appointment.controller.js";
+import { createAppointment, deleteAppointment, viewMyAppointmentsById, updateAppointmentStatus, proposeReschedule, respondToReschedule } from "../controllers/appointment.controller.js";
 
 const router = express.Router();
 
 router.post("/create", createAppointment);
 router.delete("/delete/:appointmentId", deleteAppointment);
-router.put("/update/:appointmentId", updateAppointmentStatus);
 router.get("/user/:id", viewMyAppointmentsById);
-router.put("/status/:appointmentId", updateAppointmentStatus);
+router.patch("/update/:appointmentId/status", updateAppointmentStatus);
+router.patch("/reschedule/:appointmentId/propose", proposeReschedule);
+router.patch("/reschedule/:appointmentId/respond", respondToReschedule);
 
 export default router;

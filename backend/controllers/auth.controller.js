@@ -48,11 +48,45 @@ export const register = async (req, res) => {
             return res.status(400).json({ message: "User already exists with this email." });
         }
 
-        //creating a new user
-        const user = new User({userName, email, password, role});
-        await user.save();
-        generateTokenForUserId(user._id, res);
-        return res.status(201).json({message: "Account created successfully.", userId: user._id, role: user.role});
+        // creating a new user
+        const user = new User({ userName, email, password, role });
+        const saved = await user.save();
+
+        // set httpOnly auth cookie for the new user
+        generateTokenForUserId(saved._id, res);
+
+        // return the created user (without password) so frontend can populate Appcontext
+        const userObj = saved.toObject ? saved.toObject() : saved;
+        delete userObj.password;
+        
+        // ✅ FIX: Return complete user object with all fields
+        return res.status(201).json({ 
+            message: "Account created successfully.", 
+            user: {
+                _id: userObj._id,
+                userName: userObj.userName,
+                email: userObj.email,
+                role: userObj.role,
+                profilePic: userObj.profilePic || null, // Include profilePic even if null
+                age: userObj.age,
+                phone: userObj.phone,
+                // Add other fields as needed
+                ...(userObj.role === 'lawyer' && {
+                    specialization: userObj.specialization,
+                    licenseNo: userObj.licenseNo,
+                    chamberAddress: userObj.chamberAddress,
+                    visitingHours: userObj.visitingHours,
+                    experience: userObj.experience,
+                    verified: userObj.verified,
+                    availability: userObj.availability
+                }),
+                ...(userObj.role === 'client' && {
+                    firstName: userObj.firstName,
+                    lastName: userObj.lastName
+                })
+            },
+            role: userObj.role 
+        });
 
     } catch (error) {
         return res.status(500).json({message: "Account creation failed!", error: error.message})
@@ -83,21 +117,33 @@ export const setClientAdditionalInfo = async (req, res) => {
     if (phone !== undefined) user.phone = phone;
     if (age !== undefined) user.age = age;
 
-    // Profile pic upload - FIX: Check req.files correctly
-    if (req.files && req.files.profilePic && req.files.profilePic.length > 0) {
-      const file = req.files.profilePic[0];
-      user.profilePic = {
-        filename: file.filename,
-        originalName: file.originalname,
-        path: file.path,
-        mimetype: file.mimetype,
-        size: file.size,
-        uploadedAt: new Date()
-      };
-    }
+        // Profile pic upload - support both single-file (req.file) and multipart field (req.files.profilePic)
+        if (req.file) {
+            const file = req.file;
+            user.profilePic = {
+                filename: file.filename,
+                originalName: file.originalname,
+                path: (file.path || '').replace(/\\\\/g, '/'),
+                mimetype: file.mimetype,
+                size: file.size,
+                uploadedAt: new Date()
+            };
+        } else if (req.files && req.files.profilePic && req.files.profilePic.length > 0) {
+            const file = req.files.profilePic[0];
+            user.profilePic = {
+                filename: file.filename,
+                originalName: file.originalname,
+                path: (file.path || '').replace(/\\\\/g, '/'),
+                mimetype: file.mimetype,
+                size: file.size,
+                uploadedAt: new Date()
+            };
+        }
 
-    await user.save({ validateModifiedOnly: true });
-    return res.status(200).json({ message: "Client details updated.", userId: user._id });  
+    const saved = await user.save({ validateModifiedOnly: true });
+    const userObj = saved.toObject ? saved.toObject() : saved;
+    delete userObj.password;
+    return res.status(200).json({ message: "Client details updated.", user: userObj });  
 
   } catch (error) {
     console.error("setClientAdditionalInfo error:", error);
@@ -176,8 +222,10 @@ export const setLawyerAdditionalInfo = async (req, res) => {
             };
         }
 
-        await user.save({ validateModifiedOnly: true });
-        return res.status(200).json({ message: "Lawyer details updated.", userId: user._id });
+    const saved = await user.save({ validateModifiedOnly: true });
+    const userObj = saved.toObject ? saved.toObject() : saved;
+    delete userObj.password;
+    return res.status(200).json({ message: "Lawyer details updated.", user: userObj });
     } catch (error) {
         console.error("setLawyerAdditionalInfo error:", error);
         return res.status(500).json({ message: "Failed to update lawyer details.", error: error.message });
@@ -196,10 +244,13 @@ export const login = async(req, res) => {
 
         generateTokenForUserId(user._id, res);
         
+        // Return full user object with profilePic if available
+        const userObj = user.toObject ? user.toObject() : user;
+        delete userObj.password;
+        
         return res.status(200).json({
-            userName: user.userName,
-            _id: user._id,
-            role: user.role
+            message: "Login successful",
+            user: userObj
         });
     } catch (error) {
        return res.status(500).json({message:"Internal server error", error: error.message});
@@ -387,21 +438,26 @@ export const editProfile = async (req, res) => {
             return res.status(401).json({ message: "Invalid or expired token." });
         }
 
-        const { userName, email, password, age, phone } = req.body;
+    const { userName, email, password, age, phone, firstName, lastName } = req.body;
         const user = await User.findById(userId);
         if (!user) return res.status(404).json({ message: "User not found." });
 
         if (userName !== undefined) user.userName = userName;
+        // Allow updating first and last name for any role (useful for lawyers and clients)
+        if (firstName !== undefined) user.firstName = firstName;
+        if (lastName !== undefined) user.lastName = lastName;
         if (email !== undefined) user.email = email;
         if (age !== undefined) user.age = age;
         if (phone !== undefined) user.phone = phone;
         // If a profile picture was uploaded via multer, attach it
         if (req.file) {
             const file = req.file;
+            // Normalize path to use forward slashes for client consumption
+            const normalizedPath = (file.path || '').replace(/\\/g, '/');
             user.profilePic = {
                 filename: file.filename,
                 originalName: file.originalname,
-                path: file.path,
+                path: normalizedPath,
                 mimetype: file.mimetype,
                 size: file.size,
                 uploadedAt: new Date()

@@ -71,6 +71,10 @@ const userSchema = new mongoose.Schema({
         }
     },
 
+    // Password reset token for forgot-password flow (dev-friendly)
+    resetPasswordToken: String,
+    resetPasswordExpires: Date,
+
     visitingHours: Number,
     experience: Number,
 }, {timestamps: true});

@@ -1,12 +1,16 @@
-import React from 'react'
+import React, { useContext, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import law from '../../assets/law.png'
 import lawyer from '../../assets/lawyer.png'
 import consultation from '../../assets/consultation.png'
+import { Appcontext } from '../../lib/Appcontext'
+import axios from '../../lib/axiosConfig'
 
 
 const Services = () => {
   const navigate = useNavigate();
+  const { userData } = useContext(Appcontext)
+  const [loadingId, setLoadingId] = useState(null)
 
   const services = [
   {
@@ -15,7 +19,9 @@ const Services = () => {
     alt: "Legal Consultation",
     title: "Legal Consultation",
     description: "Get expert legal advice from our legal experts in various fields of law.",
-    route: "/consultation-chat"  
+    route: "/consultation-chat",
+    // special: open conversation with admin
+    openWithAdmin: true
   },
   {
     id: 2,
@@ -48,7 +54,26 @@ const Services = () => {
                 {services.map((service) => (
                   <div 
                     key={service.id}
-                    onClick={() => navigate(service.route)}
+                    onClick={async () => {
+                      if (service.openWithAdmin) {
+                        // ensure user is logged in
+                        if (!userData) { navigate('/login'); return }
+                        try {
+                          setLoadingId(service.id)
+                          const res = await axios.post(`/api/chat/conversation/admin`)
+                          const conv = res.data
+                          if (conv && conv._id) navigate(`/consultation-chat?conversationId=${conv._id}`)
+                          else navigate(service.route)
+                        } catch (err) {
+                          console.error('Failed to start admin consultation', err)
+                          navigate(service.route)
+                        } finally {
+                          setLoadingId(null)
+                        }
+                      } else {
+                        navigate(service.route)
+                      }
+                    }}
                     className='bg-[#F7F2EC] rounded-lg shadow-lg overflow-hidden cursor-pointer group hover:shadow-2xl transition-all duration-300 flex flex-col'
                   >
                     {/* Image Section */}

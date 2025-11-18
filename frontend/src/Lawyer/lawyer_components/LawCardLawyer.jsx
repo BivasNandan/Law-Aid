@@ -1,5 +1,6 @@
-import React from 'react'
+import React, { useContext } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Appcontext } from '../../lib/Appcontext'
 
 const LawCardLawyer= ({ law, onDelete, onUpdate, onViewDetails }) => {
   const navigate = useNavigate()
@@ -9,6 +10,9 @@ const LawCardLawyer= ({ law, onDelete, onUpdate, onViewDetails }) => {
     if (id) navigate(`/law/${id}`)
     else navigate('/viewLaw')
   }
+
+  const { userData } = useContext(Appcontext)
+  const canEdit = userData?.role === 'admin' || userData?.role === 'lawyer'
 
   return (
     <div className="bg-white rounded-lg shadow-lg border border-brown overflow-hidden hover:shadow-xl transition-shadow duration-300">
@@ -74,32 +78,36 @@ const LawCardLawyer= ({ law, onDelete, onUpdate, onViewDetails }) => {
           View
         </button>
 
-        {/* Update Button */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            onUpdate && onUpdate(law._id)
-          }}
-          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded transition-colors duration-200 font-inria text-sm flex items-center justify-center gap-2"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-          </svg>
-          Edit
-        </button>
+        {/* Update Button (visible only to admin/lawyer) */}
+        {canEdit ? (
+          <>
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onUpdate && onUpdate(law._id)
+              }}
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded transition-colors duration-200 font-inria text-sm flex items-center justify-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              Edit
+            </button>
 
-        {/* Delete Button */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            onDelete && onDelete(law._id)
-          }}
-          className="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded transition-colors duration-200 font-inria text-sm flex items-center justify-center"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-          </svg>
-        </button>
+            {/* Delete Button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onDelete && onDelete(law._id)
+              }}
+              className="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded transition-colors duration-200 font-inria text-sm flex items-center justify-center"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          </>
+        ) : null}
       </div>
     </div>
   )

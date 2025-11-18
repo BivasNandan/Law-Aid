@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react'
+import React, { useState, useContext, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { toast } from 'react-hot-toast'
@@ -10,8 +10,22 @@ const SignupPage = () => {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [role, setRole] = useState(null)
   const navigate = useNavigate()
   const { backendUrl, setUserData } = useContext(Appcontext)
+
+  // Get role from localStorage (set by Role.jsx page)
+  useEffect(() => {
+    const selectedRole = localStorage.getItem('selectedRole')
+    if (!selectedRole) {
+      console.warn('⚠️ No role selected. Redirecting to role selection...')
+      toast.error('Please select a role first')
+      navigate('/role')
+      return
+    }
+    setRole(selectedRole)
+    console.log('🎭 Role loaded from localStorage:', selectedRole)
+  }, [navigate])
 
   const validatePassword = (pass) => {
     return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(pass)
@@ -35,38 +49,44 @@ const SignupPage = () => {
       return
     }
 
+    if (!role) {
+      toast.error('No role selected. Please go back and select a role.')
+      navigate('/role')
+      return
+    }
+
     setLoading(true)
     try {
+      console.log(`📝 Registering as ${role}:`, { userName, email })
+      
       const res = await axios.post(
         `${backendUrl}/api/auth/register`, 
-        { userName, email, password }, 
+        { userName, email, password, role },
         { withCredentials: true }
       )
       
       console.log('✅ Signup successful:', res.data)
       
-      // ✅ FIX: Server returns full user object; use it to populate Appcontext
+      // Set user data in context
       if (res.data?.user) {
-        setUserData(res.data.user)
-        console.log('✅ User data set in context:', res.data.user)
+        setUserData(res.data.user, res.data.token)
+        console.log(`✅ ${role} account created:`, res.data.user.userName)
       } else {
-        // Fallback to minimal data if server didn't return full user
-        setUserData({ _id: res.data.userId, userName, role: res.data.role })
+        toast.error('Signup failed - no user data returned')
+        return
       }
-
-      // Determine role for navigation
-      const role = res.data?.user?.role || res.data?.role
 
       toast.success('Account created! Now complete your profile')
       
       // Navigate to details page based on role
       if (role === 'lawyer') {
-        navigate('/lawyer-details')
+        console.log('👨‍⚖️ Redirecting lawyer to profile completion...')
+        navigate('/lawyer-details', { state: { userId: res.data.user._id } })
       } else if (role === 'client') {
-        navigate('/client-details')
+        console.log('👤 Redirecting client to profile completion...')
+        navigate('/client-details', { state: { userId: res.data.user._id } })
       } else {
-        // Fallback: if role is somehow missing, go to home
-        console.error('⚠️ Role not found in response')
+        console.warn('⚠️ Unknown role:', role)
         navigate('/')
       }
     } catch (error) {
@@ -77,11 +97,33 @@ const SignupPage = () => {
     }
   }
 
+  if (!role) {
+    return (
+      <div className='min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 flex items-center justify-center px-4 py-12'>
+        <div className='text-center'>
+          <div className='animate-spin rounded-full h-12 w-12 border-b-4 border-amber-700 mx-auto mb-4'></div>
+          <p className='text-gray-700'>Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className='min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 flex items-center justify-center px-4 py-12'>
-      <div className='w-full max-w-md'>
+      <div className='relative w-full max-w-md'>
         <div className='bg-white rounded-lg shadow-2xl p-8'>
-          <h2 className='text-3xl font-bold text-amber-900 mb-8 text-center'>Create Account</h2>
+          <button
+            onClick={() => navigate('/')}
+            aria-label="Close signup"
+            className="absolute top-3 right-3 p-2 rounded-md hover:bg-gray-100 transition"
+            title="Close and return to landing page"
+          >
+            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          <h2 className='text-3xl font-bold text-amber-900 mb-2 text-center'>Create Account</h2>
+          <p className='text-center text-gray-600 mb-6'>Signing up as <span className='font-semibold text-amber-700'>{role.charAt(0).toUpperCase() + role.slice(1)}</span></p>
           
           <form onSubmit={handleSignup} className='space-y-5'>
             <div>
@@ -144,6 +186,15 @@ const SignupPage = () => {
                 Log In
               </button>
             </p>
+            <button 
+              onClick={() => {
+                localStorage.removeItem('selectedRole')
+                navigate('/role')
+              }}
+              className='text-gray-500 hover:text-gray-700 text-sm mt-3 underline'
+            >
+              Change role
+            </button>
           </div>
         </div>
       </div>

@@ -79,9 +79,11 @@ const LawForm = () => {
       setLoading(true)
       
       // Prepare data
+      // Do not send createdBy when the current user is the env-based admin (id 'admin')
+      // because the backend expects an ObjectId for createdBy. For admin actions, omit createdBy.
       const dataToSend = {
         ...formData,
-        createdBy: userData?._id
+        ...(userData?.role !== 'admin' && userData?._id ? { createdBy: userData._id } : {})
       }
 
       let res

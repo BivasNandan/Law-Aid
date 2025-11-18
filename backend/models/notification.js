@@ -4,11 +4,23 @@ const notificationSchema = new mongoose.Schema({
   recipient: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
-    required: true
+    required: true,
+    index: true
   },
   type: {
     type: String,
-    enum: ['appointment_reminder', 'appointment_confirmed', 'appointment_cancelled', 'feedback_request', 'message', 'general'],
+    enum: [
+      'appointment_reminder',
+      'appointment_confirmed',
+      'appointment_cancelled',
+      'appointment_request',
+      'appointment_reschedule',
+      'appointment_approaching',
+      'feedback_request',
+      'message',
+      'consultation_request',
+      'general'
+    ],
     required: true
   },
   title: {
@@ -27,9 +39,14 @@ const notificationSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "User"
   },
+  relatedConsultation: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Consultation"
+  },
   isRead: {
     type: Boolean,
-    default: false
+    default: false,
+    index: true
   },
   reminderTime: Date,
   sentTime: {
@@ -37,15 +54,33 @@ const notificationSchema = new mongoose.Schema({
     default: Date.now
   },
   metadata: {
-    appointmentDateTime: Date,
-    lawyerName: String,
-    clientName: String
+    type: mongoose.Schema.Types.Mixed,
+    default: {}
+  },
+  actionUrl: {
+    type: String
+  },
+  expiresAt: {
+    type: Date
   }
-}, {timestamps: true});
+}, {
+  timestamps: true
+});
 
-// Create index for efficient querying
+// Create indexes for efficient querying
 notificationSchema.index({ recipient: 1, isRead: 1, createdAt: -1 });
 notificationSchema.index({ recipient: 1, createdAt: -1 });
+notificationSchema.index({ recipient: 1, type: 1 });
+notificationSchema.index({ relatedAppointment: 1, type: 1 });
+
+// Auto-delete notifications after 90 days
+notificationSchema.index({ createdAt: 1 }, { expireAfterSeconds: 7776000 });
+
+// Delete expired notifications based on expiresAt field
+notificationSchema.index({ expiresAt: 1 }, { 
+  expireAfterSeconds: 0,
+  partialFilterExpression: { expiresAt: { $exists: true } }
+});
 
 const Notification = mongoose.model("Notification", notificationSchema);
 export default Notification;

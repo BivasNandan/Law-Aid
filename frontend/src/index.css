@@ -1,17 +1,17 @@
 @import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Inria+Serif:wght@300;400;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Allison&display=swap');
-@theme{
-   --color-brownBG:#34281A;
- --color-brownforhover:#604B33;
- --font-family-inria: 'Inria Serif', serif;
- --font-family-allison:'Allison', cursive;
- --color-browntextcolor:#604B33;
- --color-AboutBackgroudColor:#EFE5DA;
- --color-brown:#C2B6A9;
- --color-creamcolor:#F9F8F5;
-  --color-brown2:#94744E;
- 
+
+@theme {
+  --color-brownBG: #34281A;
+  --color-brownforhover: #604B33;
+  --font-family-inria: 'Inria Serif', serif;
+  --font-family-allison: 'Allison', cursive;
+  --color-browntextcolor: #604B33;
+  --color-AboutBackgroudColor: #EFE5DA;
+  --color-brown: #C2B6A9;
+  --color-creamcolor: #F9F8F5;
+  --color-brown2: #94744E;
 }
 /* Add to your main CSS file */
 .line-clamp-2 {

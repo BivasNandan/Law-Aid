@@ -24,7 +24,12 @@ const isAdminOrLawyer = async (req) => {
     if (roleToken) {
         try {
             const decoded = jwt.verify(roleToken, process.env.JWT_SECRET);
-            return decoded.role === "admin" || decoded.role === "lawyer";
+            // set req.user so downstream handlers can inspect id/role
+            if (decoded.role === 'admin' || decoded.role === 'lawyer') {
+                req.user = { id: decoded.role === 'admin' ? 'admin' : null, role: decoded.role }
+                return true
+            }
+            return false
         } catch (error) {
             return false;
         }

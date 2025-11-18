@@ -4,6 +4,7 @@ import Header from '../../common/Header'
 import About from '../../common/About'
 import Services from '../client_components/Services'
 import ServicesLawyer from '../../Lawyer/lawyer_components/ServicesLawyer'
+import ServicesAdmin from '../../admin/admincomponetns/adminServices'
 import Footer from '../../common/Footer'
 import { Appcontext } from '../../lib/Appcontext'
 
@@ -14,7 +15,7 @@ const Landpage = () => {
     <div >
       <Navbar/>
       <Header/>
-      {userData?.role === 'lawyer' ? <ServicesLawyer/> : <Services/>}
+      {userData?.role === 'admin' ? <ServicesAdmin/> : userData?.role === 'lawyer' ? <ServicesLawyer/> : <Services/>}
       <About/>
       <Footer/>
     </div>

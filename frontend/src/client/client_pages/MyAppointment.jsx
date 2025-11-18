@@ -104,19 +104,22 @@ const MyAppointment = () => {
   }, [backendUrl, userData])
 
   // Only show pending appointments that haven't been accepted
+  // Helper to prefer proposedDateTime when present
+  const getDisplayDateTime = (appointment) => appointment.proposedDateTime || appointment.dateTime
+
   const pending = appointments
     .filter(a => a.status === 'pending')
-    .sort((a,b) => new Date(a.dateTime) - new Date(b.dateTime));
+    .sort((a,b) => new Date(getDisplayDateTime(a)) - new Date(getDisplayDateTime(b)));
     
   // Show confirmed appointments
   const upcoming = appointments
     .filter(a => a.status === 'confirmed')
-    .sort((a,b) => new Date(a.dateTime) - new Date(b.dateTime));
+    .sort((a,b) => new Date(getDisplayDateTime(a)) - new Date(getDisplayDateTime(b)));
     
   // Show only appointments marked as completed (attended)
   const past = appointments
     .filter(a => a.status === 'completed')
-    .sort((a,b) => new Date(b.dateTime) - new Date(a.dateTime));
+    .sort((a,b) => new Date(getDisplayDateTime(b)) - new Date(getDisplayDateTime(a)));
 
   const getStatusColor = (status) => {
     switch(status?.toLowerCase()) {
@@ -184,7 +187,7 @@ const MyAppointment = () => {
                                   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                   </svg>
-                                  <span>{new Date(app.dateTime).toLocaleString()}</span>
+                                  <span>{new Date(getDisplayDateTime(app)).toLocaleString()}</span>
                                 </div>
                               </div>
                             </div>
@@ -249,7 +252,7 @@ const MyAppointment = () => {
                                   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                   </svg>
-                                  <span>{new Date(app.dateTime).toLocaleString()}</span>
+                                  <span>{new Date(getDisplayDateTime(app)).toLocaleString()}</span>
                                 </div>
                               </div>
                             </div>
@@ -345,7 +348,7 @@ const MyAppointment = () => {
                                   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                   </svg>
-                                  <span>{new Date(app.dateTime).toLocaleString()}</span>
+                                  <span>{new Date(getDisplayDateTime(app)).toLocaleString()}</span>
                                 </div>
                               </div>
                             </div>

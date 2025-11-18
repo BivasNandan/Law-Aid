@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useContext } from 'react'
 import axios from 'axios'
-import { Appcontext } from '../../lib/Appcontext'
-import Navbar from '../Navbar'
-import Footer from '../Footer'
+import { Appcontext } from '../lib/Appcontext'
+import Navbar from './Navbar'
+import Footer from './Footer'
 import { toast } from 'react-hot-toast'
+import { io } from 'socket.io-client'
 
 const NotificationsPage = () => {
   const { backendUrl } = useContext(Appcontext)
@@ -15,6 +16,26 @@ const NotificationsPage = () => {
 
   useEffect(() => {
     fetchNotifications()
+
+    // Setup socket to receive real-time notifications while on this page
+    let socket
+    try {
+      socket = io(backendUrl, { withCredentials: true, transports: ['polling', 'websocket'] })
+      socket.on('notificationCreated', (notif) => {
+        try {
+          // Only add if recipient matches current user (server emits to specific room, but double-check)
+          const recipientId = notif.recipient && (typeof notif.recipient === 'string' ? notif.recipient : notif.recipient._id || notif.recipient)
+          if (!recipientId) return
+          // If current filter hides it, still show in 'all' view; otherwise, if filter matches, add
+          setNotifications(prev => [notif, ...(prev || [])])
+        } catch (e) {
+          console.warn('Failed to handle notificationCreated in NotificationsPage', e)
+        }
+      })
+    } catch (e) {
+      console.warn('Socket init failed in NotificationsPage', e)
+    }
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, filter])
 
@@ -104,11 +125,11 @@ const NotificationsPage = () => {
     <div className='min-h-screen bg-creamcolor'>
       <Navbar />
 
-      {/* Hero Section */}
-      <div className='bg-gradient-to-r from-brownBG to-browntextcolor text-creamcolor py-12'>
-        <div className='max-w-6xl mx-auto px-6'>
-          <h1 className='text-4xl font-bold mb-2'>Notifications</h1>
-          <p className='text-creamcolor/80'>Stay updated with your appointments and messages</p>
+      {/* Hero Section (improved spacing & sizing) */}
+      <div className='bg-gradient-to-r from-brownBG to-browntextcolor text-creamcolor pt-28 pb-16'>
+        <div className='max-w-7xl mx-auto px-6'>
+          <h1 className='text-5xl md:text-6xl font-bold mb-3 font-inria'>Notifications</h1>
+          <p className='text-lg md:text-xl text-creamcolor/90 max-w-3xl'>Stay updated with your appointments and messages</p>
         </div>
       </div>
 
@@ -219,7 +240,24 @@ const NotificationsPage = () => {
                         <span className='flex-shrink-0 w-3 h-3 bg-brown rounded-full'></span>
                       )}
                     </div>
-                    <p className='text-sm text-browntextcolor mt-1'>{notification.message}</p>
+                    {/* Render message and inline appointment time (if present in metadata) */}
+                    {(() => {
+                      const meta = notification.metadata || {}
+                      const proposed = meta.proposedAppointmentDateTime || meta.proposedDateTime || meta.proposedAppointment || meta.proposed
+                      const original = meta.originalAppointmentDateTime || meta.appointmentDateTime || meta.original
+                      const display = proposed || original
+                      const formatted = display && !isNaN(new Date(display).getTime()) ? new Date(display).toLocaleString() : null
+                      return (
+                        <div className='flex items-center gap-3 mt-1'>
+                          <p className='text-sm text-browntextcolor mb-0'>{notification.message}</p>
+                          {formatted && (
+                            <span className='text-sm text-browntextcolor/70'>
+                              ({formatted})
+                            </span>
+                          )}
+                        </div>
+                      )
+                    })()}
                     <div className='flex items-center justify-between mt-3 gap-2'>
                       <span className='text-xs text-browntextcolor/50'>
                         {new Date(notification.createdAt).toLocaleDateString()} at{' '}

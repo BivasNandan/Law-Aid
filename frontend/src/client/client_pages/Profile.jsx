@@ -1,6 +1,6 @@
 import React, { useState, useContext, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import axios from 'axios'
+import axios from '../../lib/axiosConfig'
 import { toast } from 'react-hot-toast'
 import { Appcontext } from '../../lib/Appcontext'
 import Navbar from "../../common/Navbar"
@@ -8,9 +8,9 @@ import Footer from '../../common/Footer'
 
 const ProfilePage = () => {
   const navigate = useNavigate()
-  const { token, userData, setUserData, backendUrl, logout } = useContext(Appcontext)
+  const { token, userData, setUserData, backendUrl, logout, loading } = useContext(Appcontext)
   const [isEditing, setIsEditing] = useState(false)
-  const [loading, setLoading] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
   const [fetching, setFetching] = useState(true)
   const [profileData, setProfileData] = useState({})
   const [previewImage, setPreviewImage] = useState(null)
@@ -19,7 +19,7 @@ const ProfilePage = () => {
   useEffect(() => {
     const fetchFullProfile = async () => {
       // Wait for Appcontext to finish initializing before deciding to redirect.
-      // If loading is true, the context may still be hydrating from localStorage.
+      // If Appcontext `loading` is true, the provider is still verifying session with server.
       if (loading) return
 
       if (!userData) {
@@ -49,7 +49,7 @@ const ProfilePage = () => {
       }
     }
     fetchFullProfile()
-  }, [userData, navigate, backendUrl])
+  }, [userData, navigate, backendUrl, loading])
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -57,20 +57,32 @@ const ProfilePage = () => {
   }
 
   const handleImageChange = (e) => {
-    const file = e.target.files[0]
-    if (!file) return
-    if (!file.type.startsWith('image/')) return toast.error('Please select an image file')
-    if (file.size > 5 * 1024 * 1024) return toast.error('Image size must be <5MB')
-    setProfileData(prev => ({ ...prev, profilePicFile: file }))
-    setPreviewImage(URL.createObjectURL(file))
-  }
+  const file = e.target.files[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) return toast.error('Please select an image file');
+  if (file.size > 5 * 1024 * 1024) return toast.error('Image size must be <5MB');
+
+  const preview = URL.createObjectURL(file);
+  setPreviewImage(preview);
+
+  setProfileData(prev => ({ ...prev, profilePicFile: file }));
+};
+
+// Cleanup preview URL to prevent memory leaks
+useEffect(() => {
+  return () => {
+    if (previewImage) {
+      URL.revokeObjectURL(previewImage);
+    }
+  };
+}, [previewImage]);
 
   const handleSave = async () => {
     if (!profileData.userName || !profileData.email) {
       return toast.error('Username and email are required')
     }
 
-    setLoading(true)
+    setIsSaving(true)
     try {
       const formData = new FormData()
       formData.append('userName', profileData.userName)
@@ -87,10 +99,11 @@ const ProfilePage = () => {
       const res = await axios.put(
         `${backendUrl}/api/auth/edit-profile`,
         formData,
-        { headers: { 'Content-Type': 'multipart/form-data' }, withCredentials: true }
+        { /* let browser set Content-Type for multipart */ withCredentials: true }
       )
 
-      const updated = res.data
+      // Accept either `{ user: {...} }` or direct user object
+      const updated = res.data?.user || res.data
       setUserData(updated)
       setProfileData(updated)
       if (updated.profilePic?.path) setPreviewImage(`${backendUrl}/${updated.profilePic.path}`)
@@ -100,14 +113,14 @@ const ProfilePage = () => {
       console.error(error)
       toast.error(error.response?.data?.message || 'Failed to update profile')
     } finally {
-      setLoading(false)
+      setIsSaving(false)
     }
   }
 
   const handleDeleteAccount = async () => {
     if (!window.confirm('Are you sure you want to delete your account? This action cannot be undone.')) return
 
-    setLoading(true)
+    setIsSaving(true)
     try {
       await axios.delete(`${backendUrl}/api/auth/delete-account`, { withCredentials: true })
       toast.success('Account deleted successfully')
@@ -116,7 +129,7 @@ const ProfilePage = () => {
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to delete account')
     } finally {
-      setLoading(false)
+      setIsSaving(false)
     }
   }
 
@@ -127,30 +140,60 @@ const ProfilePage = () => {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [changingPwd, setChangingPwd] = useState(false)
 
-  const handleChangePassword = async () => {
-    if (!currentPassword || !newPassword || !confirmPassword) return toast.error('Please fill all password fields')
-    if (newPassword !== confirmPassword) return toast.error('New passwords do not match')
-    if (newPassword.length < 8) return toast.error('New password must be at least 8 characters')
-
-    try {
-      setChangingPwd(true)
-      const res = await axios.post(
-        `${backendUrl}/api/auth/change-password`,
-        { currentPassword, newPassword },
-        { withCredentials: true }
-      )
-      toast.success(res.data?.message || 'Password changed')
-      setShowChangePassword(false)
-      setCurrentPassword('')
-      setNewPassword('')
-      setConfirmPassword('')
-    } catch (error) {
-      console.error('change password failed', error)
-      toast.error(error.response?.data?.message || 'Failed to change password')
-    } finally {
-      setChangingPwd(false)
-    }
+const handleChangePassword = async () => {
+  // Validate inputs
+  if (!currentPassword || !newPassword || !confirmPassword) {
+    return toast.error('Please fill all password fields');
   }
+  
+  if (newPassword !== confirmPassword) {
+    return toast.error('New passwords do not match');
+  }
+  
+  if (newPassword.length < 8) {
+    return toast.error('New password must be at least 8 characters');
+  }
+
+  // Validate password strength
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+  if (!passwordRegex.test(newPassword)) {
+    return toast.error('Password must contain at least one uppercase letter, lowercase letter, number, and special character');
+  }
+
+  try {
+    setChangingPwd(true);
+    
+    // Send only currentPassword and newPassword - userId comes from token
+    const res = await axios.post(
+      `${backendUrl}/api/auth/change-password`,
+      { 
+        currentPassword, 
+        newPassword 
+      },
+      { withCredentials: true }
+    );
+
+    toast.success(res.data?.message || 'Password changed successfully');
+    
+    // Reset form
+    setShowChangePassword(false);
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    
+  } catch (error) {
+    console.error('change password failed', error);
+    
+    // Display specific error message from backend
+    const errorMessage = error.response?.data?.message 
+      || error.response?.data?.errors?.join(', ')
+      || 'Failed to change password';
+    
+    toast.error(errorMessage);
+  } finally {
+    setChangingPwd(false);
+  }
+};
 
   if (fetching) return (
     <div className='min-h-screen bg-creamcolor flex flex-col'>
@@ -379,10 +422,10 @@ const ProfilePage = () => {
                   <div className="flex gap-4 pt-8 border-t border-brown">
                     <button 
                       onClick={handleSave} 
-                      disabled={loading}
+                      disabled={isSaving}
                       className="bg-brownBG hover:bg-brownforhover text-creamcolor px-8 py-3 rounded-xl font-semibold transition-all duration-200 hover:shadow-lg disabled:opacity-50 flex items-center gap-2"
                     >
-                      {loading ? (
+                      {isSaving ? (
                         <>
                           <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
                           Saving...
@@ -451,36 +494,51 @@ const ProfilePage = () => {
                       </div>
                     </div>
                   )}
-                  {/* Role-specific button: My Appointments for clients, Schedule for lawyers */}
+                 
+                  {/* Delete Account button moved here under Account Management */}
                   <div className="mt-4">
-                    {profileData.role === 'client' && (
-                      <button onClick={() => navigate('/my-appointments')} className="w-full bg-brownBG hover:bg-brownforhover text-creamcolor py-3 rounded-xl font-semibold transition-all duration-200 hover:shadow-lg">
-                        My Appointments
-                      </button>
-                    )}
-                    {profileData.role === 'lawyer' && (
-                      <button onClick={() => navigate('/schedule')} className="w-full bg-brownBG hover:bg-brownforhover text-creamcolor py-3 rounded-xl font-semibold transition-all duration-200 hover:shadow-lg">
-                        Schedule
-                      </button>
-                    )}
+                    <button 
+                      onClick={handleDeleteAccount} 
+                      disabled={isSaving}
+                      className="w-full bg-red-600 hover:bg-red-700 text-white py-3 rounded-xl font-semibold transition-all duration-200 hover:shadow-lg disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      Delete Account
+                    </button>
                   </div>
                 </div>
               </div>
 
-              {/* Danger Zone */}
-              <div className="bg-white rounded-2xl shadow-xl border border-red-300 p-6">
-                
+              {/* Notifications */}
+              <div className="bg-white rounded-2xl shadow-xl border border-brown p-6">
+                <h3 className="text-xl font-bold text-brownBG mb-4 font-inria">Notifications</h3>
                 <button 
-                  onClick={handleDeleteAccount} 
-                  disabled={loading}
-                  className="w-full bg-red-600 hover:bg-red-700 text-white py-3 rounded-xl font-semibold transition-all duration-200 hover:shadow-lg disabled:opacity-50 flex items-center justify-center gap-2"
+                  onClick={() => navigate('/notifications')} 
+                  className="w-full bg-brownBG hover:bg-brownforhover text-creamcolor py-3 rounded-xl font-semibold transition-all duration-200 hover:shadow-lg flex items-center justify-center gap-2"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                   </svg>
-                  Delete Account
+                  View Notifications
                 </button>
+                {/* Add quick access to appointments/schedule inside Notifications card */}
+                <div className="mt-4">
+                  {profileData.role === 'client' && (
+                    <button onClick={() => navigate('/my-appointments')} className="w-full bg-AboutBackgroudColor hover:bg-brown text-brownBG py-3 rounded-xl font-semibold transition-all duration-200 border border-brown2">
+                      My Appointments
+                    </button>
+                  )}
+                  {profileData.role === 'lawyer' && (
+                    <button onClick={() => navigate('/schedule')} className="w-full bg-AboutBackgroudColor hover:bg-brown text-brownBG py-3 rounded-xl font-semibold transition-all duration-200 border border-brown2">
+                      Schedule
+                    </button>
+                  )}
+                </div>
               </div>
+
+              
             </div>
           </div>
         </div>

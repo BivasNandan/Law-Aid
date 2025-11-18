@@ -44,7 +44,7 @@ const LawDetails = () => {
         <h2 className='text-2xl font-bold text-brownBG mb-2 font-inria'>Law not found</h2>
         <p className='text-browntextcolor mb-6 font-inria'>The requested law could not be found in our database.</p>
         <button 
-          onClick={() => navigate(userData?.role === 'lawyer' ? '/view-manage-law' : '/viewLaw')}
+          onClick={() => navigate(userData?.role === 'lawyer' || userData?.role === 'admin' ? '/view-manage-law' : '/viewLaw')}
           className='px-6 py-3 bg-brownBG hover:bg-brownforhover text-creamcolor font-semibold rounded-md transition-all font-inria'
         >
           Back to Search
@@ -63,7 +63,7 @@ const LawDetails = () => {
       <div className={`bg-brownBG text-creamcolor py-16`}>
         <div className='max-w-6xl mx-auto px-6'>
           <button 
-            onClick={() => navigate(userData?.role === 'lawyer' ? '/view-manage-law' : '/viewLaw')}
+            onClick={() => navigate(userData?.role === 'lawyer' || userData?.role === 'admin' ? '/view-manage-law' : '/viewLaw')}
             className='flex items-center gap-2 text-brown hover:text-white mb-6 transition-colors group font-inria'
           >
             <svg className="w-5 h-5 transform group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">

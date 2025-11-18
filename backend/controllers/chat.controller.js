@@ -3,12 +3,21 @@ import Conversation from "../models/conversation.js";
 import Message from "../models/message.js";
 import Appointment from "../models/appointment.js";
 import Consultation from "../models/consultation.js";
+import User from "../models/user.js";
+import Admin from "../models/admin.js";
 import { getIO } from "../src/socket.js";
+import bcrypt from 'bcryptjs';
 import fs from "fs";
 import path from "path";
 
-const isParticipantForConversation = async (userId, conv) => {
+const isParticipantForConversation = async (userId, conv, userRole) => {
   if (!conv) return false;
+  
+  // Admins can access any consultation conversation
+  if (userRole === 'admin' && conv.type === 'consultation') {
+    return true;
+  }
+  
   if (conv.type === "appointment" && conv.appointmentId) {
     const appt = await Appointment.findById(conv.appointmentId);
     if (!appt) return false;
@@ -89,9 +98,88 @@ export const getOrCreateConversation = async (req, res) => {
   }
 };
 
+// FIXED: Create conversation with admin
+export const getOrCreateConversationWithAdmin = async (req, res) => {
+  try {
+    const me = req.user?.id;
+    if (!me) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+
+    // Find admin user by role
+    let adminUser = await User.findOne({ role: 'admin' });
+
+    // If not found, create admin user
+    if (!adminUser) {
+      const adminEmail = process.env.ADMIN_EMAIL;
+      if (!adminEmail) {
+        return res.status(500).json({ message: 'Admin configuration missing' });
+      }
+
+      const adminProfile = await Admin.findOne({ email: adminEmail });
+      const pwd = process.env.ADMIN_PASSWORD || 'Admin@1234';
+      
+      // Hash password
+      const hashedPassword = await bcrypt.hash(pwd, 10);
+      
+      let userName = 'admin';
+      const existingUser = await User.findOne({ userName });
+      if (existingUser) {
+        userName = `admin_${Date.now()}`;
+      }
+
+      adminUser = new User({
+        userName,
+        email: adminEmail,
+        password: hashedPassword,
+        role: 'admin',
+        firstName: 'Site',
+        lastName: 'Admin'
+      });
+      await adminUser.save();
+      console.log('✅ Admin user created for conversation');
+    }
+
+    if (!adminUser) {
+      return res.status(500).json({ message: 'Admin user not available' });
+    }
+
+    // Find existing direct conversation between user and admin
+    let conv = await Conversation.findOne({
+      type: 'direct',
+      participants: { $all: [adminUser._id, me] }
+    });
+
+    if (!conv) {
+      // Create new conversation
+      conv = new Conversation({
+        type: 'direct',
+        participants: [adminUser._id, me]
+      });
+      await conv.save();
+      console.log(`✅ New conversation created: ${conv._id} between user ${me} and admin ${adminUser._id}`);
+
+      // Emit via socket if available
+      try {
+        const io = getIO();
+        io.to(`user_${me}`).emit("conversationCreated", conv);
+        io.to(`user_${adminUser._id}`).emit("conversationCreated", conv);
+      } catch (e) {
+        console.warn('Socket emit failed:', e);
+      }
+    }
+
+    return res.status(200).json(conv);
+  } catch (err) {
+    console.error('Error creating conversation with admin:', err);
+    return res.status(500).json({ message: err.message });
+  }
+};
+
 export const getMessages = async (req, res) => {
   try {
     const userId = req.user?.id;
+    const userRole = req.user?.role;
     if (!userId) return res.status(401).json({ message: "Authentication required" });
 
     const { conversationId } = req.params;
@@ -99,7 +187,7 @@ export const getMessages = async (req, res) => {
 
     const conv = await Conversation.findById(conversationId);
     if (!conv) return res.status(404).json({ message: "Conversation not found" });
-    if (!await isParticipantForConversation(userId, conv)) return res.status(403).json({ message: "Forbidden" });
+    if (!await isParticipantForConversation(userId, conv, userRole)) return res.status(403).json({ message: "Forbidden" });
 
     const q = { conversation: conversationId };
     if (before) q.createdAt = { $lt: new Date(before) };
@@ -160,6 +248,7 @@ export const uploadAttachments = async (req, res) => {
 export const createMessageViaHttp = async (req, res) => {
   try {
     const userId = req.user?.id;
+    const userRole = req.user?.role;
     if (!userId) return res.status(401).json({ message: "Authentication required" });
 
     const { conversationId, text, attachments = [] } = req.body;
@@ -167,7 +256,7 @@ export const createMessageViaHttp = async (req, res) => {
 
     const conv = await Conversation.findById(conversationId);
     if (!conv) return res.status(404).json({ message: "Conversation not found" });
-    if (!await isParticipantForConversation(userId, conv)) return res.status(403).json({ message: "Forbidden" });
+    if (!await isParticipantForConversation(userId, conv, userRole)) return res.status(403).json({ message: "Forbidden" });
 
     const message = new Message({ conversation: conversationId, sender: userId, text, attachments });
     await message.save();
@@ -178,8 +267,18 @@ export const createMessageViaHttp = async (req, res) => {
     try {
       const io = getIO();
       io.to(`conv_${conversationId}`).emit("message", message);
+      // Log emit targets for debugging
+      console.log(`Emitting message ${message._id} to conv_${conversationId}`);
       conv.participants.forEach(pid => {
-        if (!pid.equals(userId)) io.to(`user_${pid}`).emit("newMessage", { conversationId, message });
+        try {
+          const pidStr = pid.toString()
+          if (!pid.equals(userId)) {
+            console.log(`Emitting newMessage to user_${pidStr} (excluding sender ${userId})`);
+            io.to(`user_${pidStr}`).emit("newMessage", { conversationId, message });
+          }
+        } catch (e) {
+          console.warn('Failed to emit newMessage to participant', pid, e)
+        }
       });
     } catch (e) {
       // socket not initialized — ignore

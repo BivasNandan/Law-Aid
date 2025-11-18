@@ -1,5 +1,6 @@
 import React, { useState, useContext, useEffect, useRef } from 'react'
 import axios from 'axios'
+import { io } from 'socket.io-client'
 import { Appcontext } from '../../lib/Appcontext'
 import { toast } from 'react-hot-toast'
 
@@ -55,6 +56,36 @@ const NotificationBell = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userData])
+
+  // Socket listener for real-time notifications
+  useEffect(() => {
+    if (!userData) return
+    let socket
+    try {
+      socket = io(backendUrl, { withCredentials: true, transports: ['polling', 'websocket'] })
+
+      socket.on('notificationCreated', (notif) => {
+        // If the notification is for the current user, prepend it
+        try {
+          const recipientId = notif.recipient && (typeof notif.recipient === 'string' ? notif.recipient : notif.recipient._id || notif.recipient);
+          if (!recipientId) return
+          if (recipientId.toString() === userData._id.toString()) {
+            setNotifications(prev => [notif, ...(prev || [])])
+            setUnreadCount(c => (c || 0) + 1)
+          }
+        } catch (e) {
+          console.warn('Failed to handle notificationCreated in bell', e)
+        }
+      })
+    } catch (e) {
+      console.warn('Socket init failed in NotificationBell', e)
+    }
+
+    return () => {
+      if (socket) socket.disconnect()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userData, backendUrl])
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -214,7 +245,21 @@ const NotificationBell = () => {
                           </svg>
                         </button>
                       </div>
-                      <p className='text-xs text-browntextcolor mt-1'>{notification.message}</p>
+                      {(() => {
+                        const meta = notification.metadata || {}
+                        const proposed = meta.proposedAppointmentDateTime || meta.proposedDateTime || meta.proposedAppointment || meta.proposed
+                        const original = meta.originalAppointmentDateTime || meta.appointmentDateTime || meta.original
+                        const display = proposed || original
+                        const formatted = display && !isNaN(new Date(display).getTime()) ? new Date(display).toLocaleString() : null
+                        return (
+                          <div className='flex items-center gap-2 mt-1'>
+                            <p className='text-xs text-browntextcolor mb-0'>{notification.message}</p>
+                            {formatted && (
+                              <span className='text-xs text-browntextcolor/60'>({formatted})</span>
+                            )}
+                          </div>
+                        )
+                      })()}
                       <div className='flex items-center justify-between mt-2'>
                         <span className='text-xs text-browntextcolor/50'>
                           {new Date(notification.createdAt).toLocaleDateString()} at{' '}

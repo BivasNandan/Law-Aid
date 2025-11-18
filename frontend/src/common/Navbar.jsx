@@ -40,7 +40,11 @@ const Navbar = () => {
 
   const handleProfileDirect = () => {
     setIsMobileMenuOpen(false)
-    navigate('/profile')
+    if (userData?.role === 'admin') {
+      navigate('/admin/profile')
+    } else {
+      navigate('/profile')
+    }
   }
 
   const getUserInitial = () => {

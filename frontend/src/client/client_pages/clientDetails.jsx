@@ -1,6 +1,6 @@
-import React, { useState, useContext, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
-import axios from 'axios'
+import React, { useState, useContext, useRef, useEffect } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
+import axios from '../../lib/axiosConfig' // Use your configured axios
 import { toast } from 'react-hot-toast'
 import { Appcontext } from '../../lib/Appcontext'
 
@@ -16,7 +16,24 @@ const ClientDetails = () => {
   const [loading, setLoading] = useState(false)
   const fileInputRef = useRef(null)
   const navigate = useNavigate()
-  const { backendUrl, setUserData } = useContext(Appcontext)
+  const location = useLocation()
+  const { backendUrl, setUserData, userData } = useContext(Appcontext)
+
+  // Get userId from location state or userData
+  const userId = location.state?.userId || userData?._id || userData?.userId || userData?.id
+
+  useEffect(() => {
+    console.log('ClientDetails mounted')
+    console.log('userData:', userData)
+    console.log('userId resolved:', userId)
+    
+    // Redirect if no user data available
+    if (!userData && !userId) {
+      console.warn('⚠️ No user data found, redirecting to login')
+      toast.error('Please login first')
+      navigate('/login')
+    }
+  }, [userData, userId, navigate])
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -54,24 +71,42 @@ const ClientDetails = () => {
       return
     }
 
+    if (!userId) {
+      toast.error('User ID not found. Please login again.')
+      navigate('/login')
+      return
+    }
+
     setLoading(true)
 
     try {
+      console.log('📤 Submitting client details for userId:', userId)
+      
       const data = new FormData()
+      
+      // ✅ CRITICAL: Always include userId
+      data.append('_id', userId)
       data.append('firstName', formData.firstName)
       data.append('lastName', formData.lastName)
       data.append('phone', formData.phone || '')
       data.append('age', formData.age || '')
       
-      // ✅ FIX: Append profilePic to match backend expectations
       if (formData.profilePic) {
         data.append('profilePic', formData.profilePic)
-        console.log('Uploading with image:', formData.profilePic.name)
-      } else {
-        console.log('Uploading without image')
+        console.log('📎 Uploading with image:', formData.profilePic.name)
       }
 
-      // Can use either POST or PATCH depending on your backend route
+      // Debug log
+      console.log('FormData contents:')
+      for (const pair of data.entries()) {
+        if (pair[1] instanceof File) {
+          console.log(`  ${pair[0]}: [File] ${pair[1].name} (${pair[1].size} bytes)`)
+        } else {
+          console.log(`  ${pair[0]}: ${pair[1]}`)
+        }
+      }
+
+      // ✅ Send request with credentials
       const response = await axios.patch(
         `${backendUrl}/api/auth/set-client-additional-info`,
         data,
@@ -85,28 +120,42 @@ const ClientDetails = () => {
 
       console.log('✅ Profile update response:', response.data)
       
-      // ✅ FIX: Update Appcontext so navbar/profile updates immediately
+      // Update context with new user data
       if (response.data?.user) {
         setUserData(response.data.user)
-        console.log('✅ User data updated in context:', response.data.user)
+        console.log('✅ User data updated in context')
         
         // Update preview with server URL if profile pic exists
         if (response.data.user.profilePic?.path) {
           const picPath = response.data.user.profilePic.path.replace(/\\/g, '/')
-          const idx = picPath.indexOf('uploads/')
-          const finalUrl = idx !== -1 
-            ? `${backendUrl}/${picPath.slice(idx)}` 
-            : `${backendUrl}/uploads/profilePics/${response.data.user.profilePic.filename}`
-          setPreview(finalUrl)
-          console.log('✅ Profile pic URL:', finalUrl)
+          setPreview(`${backendUrl}/${picPath}`)
         }
       }
       
       toast.success('Profile completed successfully!')
-      navigate('/')
+      
+      // Navigate to home page
+      setTimeout(() => {
+        navigate('/', { replace: true })
+      }, 500)
+      
     } catch (error) {
       console.error('❌ Profile update error:', error)
-      toast.error(error.response?.data?.message || 'Failed to update profile')
+      console.error('Error response:', error.response?.data)
+      console.error('Error status:', error.response?.status)
+      
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.error || 
+                          'Failed to update profile'
+      
+      toast.error(errorMessage)
+      
+      // If authentication error, redirect to login
+      if (error.response?.status === 401 || error.response?.status === 404) {
+        setTimeout(() => {
+          navigate('/login')
+        }, 2000)
+      }
     } finally {
       setLoading(false)
     }
@@ -135,7 +184,7 @@ const ClientDetails = () => {
                       setFormData(prev => ({ ...prev, profilePic: null }))
                       if (fileInputRef.current) fileInputRef.current.value = ''
                     }}
-                    className='absolute top-0 right-0 bg-red-500 hover:bg-red-600 text-white rounded-full p-1'
+                    className='absolute top-0 right-0 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 shadow-lg'
                   >
                     ✕
                   </button>
@@ -157,15 +206,13 @@ const ClientDetails = () => {
                 id="profilePicInput"
               />
               
-              <label htmlFor="profilePicInput" className='block cursor-pointer'>
-                <button 
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className='text-amber-700 font-semibold hover:text-amber-800 transition'
-                >
-                  {preview ? 'Change Photo' : 'Upload Photo'}
-                </button>
-              </label>
+              <button 
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className='text-amber-700 font-semibold hover:text-amber-800 transition'
+              >
+                {preview ? 'Change Photo' : 'Upload Photo'}
+              </button>
             </div>
 
             {/* Name Fields */}
@@ -230,11 +277,28 @@ const ClientDetails = () => {
             <button
               type="submit"
               disabled={loading}
-              className='w-full bg-amber-700 hover:bg-amber-800 text-white font-semibold py-3 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed'
+              className='w-full bg-amber-700 hover:bg-amber-800 text-white font-semibold py-3 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2'
             >
-              {loading ? 'Completing...' : 'Complete Profile'}
+              {loading ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                  Completing...
+                </>
+              ) : (
+                'Complete Profile'
+              )}
             </button>
           </form>
+
+          {/* Skip for now option */}
+          <div className='mt-4 text-center'>
+            <button
+              onClick={() => navigate('/')}
+              className='text-gray-600 hover:text-gray-800 text-sm underline'
+            >
+              Skip for now
+            </button>
+          </div>
         </div>
       </div>
     </div>

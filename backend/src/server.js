@@ -13,6 +13,7 @@ import appointmentRoutes from "../routes/appointment.route.js";
 import chatRoutes from "../routes/chat.route.js";
 import feedbackRoutes from "../routes/feedback.route.js";
 import notificationRoutes from "../routes/notification.route.js";
+import adminRoutes from "../routes/admin.route.js";
 
 // Load environment variables
 dotenv.config();
@@ -51,10 +52,36 @@ app.use("/api/appointment", appointmentRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/feedback", feedbackRoutes);
 app.use("/api/notifications", notificationRoutes);
+// Admin routes (protected by server-side middleware)
+app.use("/api/admin", adminRoutes);
+
+// ✅ Global Multer error handler
+app.use((error, req, res, next) => {
+    if (error instanceof multer.MulterError) {
+        console.error('❌ Multer error:', error.code, error.message);
+        return res.status(400).json({
+            message: 'File upload error',
+            error: error.message,
+            code: error.code
+        });
+    }
+    if (error && error.message && error.message.includes('file')) {
+        console.error('❌ File error:', error.message);
+        return res.status(400).json({
+            message: 'File error',
+            error: error.message
+        });
+    }
+    next(error);
+});
 
 // Initialize socket.io
 import { initSocket } from './socket.js';
 const io = initSocket(server);
+
+// Start scheduled reminders
+import startReminderScheduler from '../utils/reminderScheduler.js';
+
 
 // Connect to database and start server
 connectDB().then(() => {
@@ -65,3 +92,11 @@ connectDB().then(() => {
     console.error('Failed to connect to MongoDB:', err);
     process.exit(1);
 });
+
+// Start the reminder scheduler after DB connection and server start
+// We attempt to start it here; reminderScheduler itself is resilient to errors
+try {
+    startReminderScheduler(io, { intervalMinutes: 15 });
+} catch (e) {
+    console.warn('Failed to start reminder scheduler:', e);
+}

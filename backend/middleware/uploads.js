@@ -52,8 +52,10 @@ const getUserIdFromToken = (req) => {
             return decoded.userId;
         }
     } catch (error) {
-        console.log('Token extraction error:', error.message);
-         throw new Error('Authentication failed. Cannot upload file.');
+        console.warn('Token extraction error:', error.message);
+        // Do not throw here - return null so multer doesn't crash during file parsing.
+        // The controller will still validate authentication and userId after upload.
+        return null;
     }
     return 'unknown';
 };

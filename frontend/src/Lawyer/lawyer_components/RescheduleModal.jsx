@@ -1,11 +1,52 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import axios from 'axios'
+import { io } from 'socket.io-client'
 import { toast } from 'react-hot-toast'
 
 const RescheduleModal = ({ appointment, backendUrl, onClose, onSuccess }) => {
   const [proposedDateTime, setProposedDateTime] = useState('')
   const [rescheduleReason, setRescheduleReason] = useState('')
   const [loading, setLoading] = useState(false)
+  const [appointmentData, setAppointmentData] = useState(appointment)
+
+  useEffect(() => {
+    const fetchLatest = async () => {
+      try {
+        const res = await axios.get(`${backendUrl}/api/appointment/${appointment._id}`, { withCredentials: true })
+        setAppointmentData(res.data.appointment)
+      } catch (err) {
+        console.warn('Failed to fetch latest appointment, using provided prop', err?.response?.data || err.message)
+      }
+    }
+
+    if (appointment?._id) fetchLatest()
+
+    // Setup socket to listen for updates to this appointment while modal is open
+    let socket
+    try {
+      socket = io(backendUrl, { withCredentials: true, transports: ['polling', 'websocket'] })
+
+      socket.on('appointmentStatusUpdated', (updated) => {
+        if (!updated?._id) return
+        if (updated._id === appointment._id) {
+          setAppointmentData(updated)
+        }
+      })
+
+      socket.on('rescheduleResponded', (data) => {
+        if (data?.appointmentId === appointment._id) {
+          // fetch full appointment after response
+          fetchLatest()
+        }
+      })
+    } catch (e) {
+      console.warn('Socket setup failed in RescheduleModal', e)
+    }
+
+    return () => {
+      if (socket) socket.disconnect()
+    }
+  }, [appointment, backendUrl])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -42,6 +83,15 @@ const RescheduleModal = ({ appointment, backendUrl, onClose, onSuccess }) => {
   const now = new Date()
   const minDateTime = now.toISOString().slice(0, 16)
 
+  // Determine the most up-to-date appointment time to show as "Current Time"
+  // Prefer a proposedDateTime (rescheduled time) if present, otherwise use the active dateTime.
+  const currentRaw = appointmentData?.proposedDateTime || appointmentData?.dateTime || appointment?.proposedDateTime || appointment?.dateTime
+  let displayCurrentTime = 'Not scheduled'
+  if (currentRaw) {
+    const d = new Date(currentRaw)
+    if (!isNaN(d.getTime())) displayCurrentTime = d.toLocaleString()
+  }
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-2xl max-w-md w-full p-6">
@@ -60,7 +110,7 @@ const RescheduleModal = ({ appointment, backendUrl, onClose, onSuccess }) => {
         <div className="mb-4 p-3 bg-blue-50 rounded-lg">
           <p className="text-sm text-gray-600">
             <span className="font-semibold">Current Time:</span>{' '}
-            {new Date(appointment.dateTime).toLocaleString()}
+            {displayCurrentTime}
           </p>
         </div>
 

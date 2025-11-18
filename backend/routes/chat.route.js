@@ -4,6 +4,7 @@ import { requireAuth } from "../middleware/authMiddleware.js";
 import { uploadChatAttachments } from "../middleware/uploads.js";
 import {
   getOrCreateConversation,
+  getOrCreateConversationWithAdmin,
   getMessages,
   getMyConversations,
   uploadAttachments,
@@ -15,6 +16,8 @@ import {
 const router = express.Router();
 
 router.post("/conversation", requireAuth, getOrCreateConversation); // query: type, appointmentId|consultationId|otherUserId|lawyerId
+// create/get conversation with site admin for authenticated user
+router.post("/conversation/admin", requireAuth, getOrCreateConversationWithAdmin);
 router.get("/conversations", requireAuth, getMyConversations); // list conversations for the authenticated user; optional query ?type=consultation
 router.get("/conversation/:conversationId/messages", requireAuth, getMessages);
 

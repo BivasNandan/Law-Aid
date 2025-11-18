@@ -1,6 +1,7 @@
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
+import http from "http";
 import multer from "multer";
 import path from "path";  
 import { connectDB } from "../config/db.js";
@@ -9,28 +10,93 @@ import cookieParser from "cookie-parser";
 import authRoutes from "../routes/auth.route.js";
 import lawRoutes from "../routes/law.routes.js";
 import appointmentRoutes from "../routes/appointment.route.js";
+import chatRoutes from "../routes/chat.route.js";
+import feedbackRoutes from "../routes/feedback.route.js";
+import notificationRoutes from "../routes/notification.route.js";
+import adminRoutes from "../routes/admin.route.js";
+
+// Load environment variables
+dotenv.config();
 
 const app = express();
-dotenv.config();
-const PORT = process.env.PORT || 5001
+const PORT = process.env.PORT || 5000;
+const server = http.createServer(app);
 
-//middleware
-app.use(express.json()); //used for req.body
-app.use(cors());
-app.use(bodyParser.urlencoded({extended: false}));
-app.use(bodyParser.json());
-app.use(cookieParser());
+// ✅ CORS configuration to allow credentials
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+app.use(cors({
+    origin: FRONTEND_URL,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'Accept']
+}));
 
+
+// Middleware
+app.use(express.json()); // for JSON request bodies
+app.use(bodyParser.urlencoded({ extended: false })); // for URL-encoded bodies
+app.use(bodyParser.json()); // parse JSON bodies
+app.use(cookieParser()); // parse cookies
+
+// Test route
 app.get("/", (req, res) => {
-    res.json( { "msg": "hello!" });
+    res.json({ msg: "hello!" });
 });
+//  Serve uploaded files statically
+app.use("/uploads", express.static("uploads"));
 
+// API routes
 app.use("/api/auth", authRoutes);
 app.use("/api/law", lawRoutes);
 app.use("/api/appointment", appointmentRoutes);
+app.use("/api/chat", chatRoutes);
+app.use("/api/feedback", feedbackRoutes);
+app.use("/api/notifications", notificationRoutes);
+// Admin routes (protected by server-side middleware)
+app.use("/api/admin", adminRoutes);
 
-connectDB().then(() => {
-  app.listen(PORT, () => {
-    console.log("Server started on PORT:", PORT);
-  });
+// ✅ Global Multer error handler
+app.use((error, req, res, next) => {
+    if (error instanceof multer.MulterError) {
+        console.error('❌ Multer error:', error.code, error.message);
+        return res.status(400).json({
+            message: 'File upload error',
+            error: error.message,
+            code: error.code
+        });
+    }
+    if (error && error.message && error.message.includes('file')) {
+        console.error('❌ File error:', error.message);
+        return res.status(400).json({
+            message: 'File error',
+            error: error.message
+        });
+    }
+    next(error);
 });
+
+// Initialize socket.io
+import { initSocket } from './socket.js';
+const io = initSocket(server);
+
+// Start scheduled reminders
+import startReminderScheduler from '../utils/reminderScheduler.js';
+
+
+// Connect to database and start server
+connectDB().then(() => {
+    server.listen(PORT, () => {
+        console.log(`Server and Socket.IO are running on port ${PORT}`);
+    });
+}).catch(err => {
+    console.error('Failed to connect to MongoDB:', err);
+    process.exit(1);
+});
+
+// Start the reminder scheduler after DB connection and server start
+// We attempt to start it here; reminderScheduler itself is resilient to errors
+try {
+    startReminderScheduler(io, { intervalMinutes: 15 });
+} catch (e) {
+    console.warn('Failed to start reminder scheduler:', e);
+}

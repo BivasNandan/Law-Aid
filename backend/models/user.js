@@ -14,11 +14,18 @@ const userSchema = new mongoose.Schema({
         minlength: 8,
         validate: {
             validator: function(v) {
+                // Skip validation if password hasn't changed
+                if (!this.isModified('password')) {
+                    return true;
+                }
+                // Skip validation if password is already hashed (starts with $2)
+                if (typeof v === 'string' && v.startsWith('$2')) {
+                    return true;
+                }
                 // At least 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char
                 return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(v);
             },
-            message: () => `Password is not strong enough!`
-
+            message: () => `Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character!`
         }
     },
     phone: {
@@ -51,10 +58,23 @@ const userSchema = new mongoose.Schema({
     
     //for lawyers only
     specialization: {
-    type: String,
-    enum: [ "Civil Law", "Criminal Law", "Family Law", "Corporate & Commercial Law", "Constitutional & Administrative Law", "International Law", "Intellectual Property Law", "Labour & Employment Law", "Environmental Law", "Human Rights Law", "Health & Medical Law", "Arbitration & ADR", "Maritime & Admiralty Law"
-    ],
-  },
+        type: String,
+        enum: [ 
+            "Civil Law", 
+            "Criminal Law", 
+            "Family Law", 
+            "Corporate & Commercial Law", 
+            "Constitutional & Administrative Law", 
+            "International Law", 
+            "Intellectual Property Law", 
+            "Labour & Employment Law", 
+            "Environmental Law", 
+            "Human Rights Law", 
+            "Health & Medical Law", 
+            "Arbitration & ADR", 
+            "Maritime & Admiralty Law"
+        ],
+    },
     licenseNo: String, 
     verified: {type: Boolean, default: false},
     availability: {type: Boolean, default: false},
@@ -71,13 +91,21 @@ const userSchema = new mongoose.Schema({
         }
     },
 
+    // Password reset token for forgot-password flow (dev-friendly)
+    resetPasswordToken: String,
+    resetPasswordExpires: Date,
+
     visitingHours: Number,
     experience: Number,
+    barCouncilNumber: String, // Added this as it's used in your controller
 }, {timestamps: true});
 
-//hasing passwords before saving
+// Hashing passwords before saving
 userSchema.pre("save", async function(next) {
+    // Only hash the password if it has been modified (or is new)
     if(!this.isModified("password")) return next();
+    
+    // Hash the password
     this.password = await bcrypt.hash(this.password, 10);
     next();
 });

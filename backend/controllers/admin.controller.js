@@ -36,6 +36,34 @@ export const getAdminProfile = async (req, res) => {
   }
 }
 
+// Public-safe admin profile for clients (no admin auth required)
+export const getPublicAdminProfile = async (req, res) => {
+  try {
+    const admin = await Admin.findOne({ email: process.env.ADMIN_EMAIL }).lean()
+    const adminUser = await ensureAdminUser()
+
+    if (!admin && !adminUser) {
+      return res.status(404).json({ message: 'Admin profile not found' })
+    }
+
+    const profilePic = admin?.profilePic || adminUser?.profilePic || null
+
+    const payload = {
+      _id: adminUser?._id || null,
+      userName: adminUser?.userName || 'admin',
+      email: admin?.email || adminUser?.email || process.env.ADMIN_EMAIL,
+      role: 'admin',
+      name: admin?.name || 'Admin',
+      phone: admin?.phone || '',
+      profilePic
+    }
+
+    return res.status(200).json(payload)
+  } catch (error) {
+    return res.status(500).json({ message: 'Failed to fetch admin profile', error: error.message })
+  }
+}
+
 // Create or update admin profile
 export const createOrUpdateAdminProfile = async (req, res) => {
   try {

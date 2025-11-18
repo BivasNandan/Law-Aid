@@ -26,48 +26,49 @@ const Consultation_chat = () => {
   const messagesEndRef = useRef(null)
   const socketRef = useRef(null)
 
-  const conversationIdParam = searchParams.get('conversationId')
-
   // ✅ FIXED: Helper to resolve profile pic URL with proper admin handling
   const getProfilePicUrl = (person) => {
-    if (!person) return ''
+    if (!person) return null
     const pic = person.profilePic
-    if (!pic) return ''
+    if (!pic) return null
+
+    const normalizePath = (input) => {
+      if (!input) return null
+      if (input.startsWith('http://') || input.startsWith('https://')) return input
+      const cleaned = input.replace(/\\/g, '/').replace(/^\/+/, '')
+      if (!cleaned) return null
+      if (cleaned.startsWith('uploads/')) return `${backendUrl}/${cleaned}`
+      return `${backendUrl}/${cleaned}`
+    }
     
     // Check if this is admin user
     const isAdmin = person.role === 'admin' || person.userName === 'admin' || person.isAdmin === true
     
-    // If admin and has filename, use admin profile pics directory
-    if (isAdmin && pic.filename) {
-      return `${backendUrl}/uploads/adminProfilePics/${pic.filename}`
-    }
-    
-    // If has path starting with uploads/
-    if (pic.path && pic.path.startsWith('uploads/')) {
-      return `${backendUrl}/${pic.path}`
-    }
-    
-    // If only has filename, determine directory based on role
+    // Prefer explicit path if provided
+    const pathUrl = normalizePath(pic.path)
+    if (pathUrl) return pathUrl
+
+    // If only filename, map to directory
     if (pic.filename) {
       const directory = isAdmin ? 'adminProfilePics' : 'profilePics'
       return `${backendUrl}/uploads/${directory}/${pic.filename}`
     }
     
-    return ''
+    return null
   }
+
+  const conversationIdParam = searchParams.get('conversationId')
+  const otherPersonPicUrl = getProfilePicUrl(otherPerson)
+  const currentUserPicUrl = getProfilePicUrl(userData)
 
   // ✅ FIXED: Fetch admin profile properly
   const fetchAdminProfile = async () => {
     try {
-      const res = await axios.get(`${backendUrl}/api/admin/profile`, { withCredentials: true });
-      return res.data;
+      const res = await axios.get(`/api/admin/public-profile`)
+      return res.data
     } catch (error) {
-      if (error.response?.status === 401) {
-        toast.error('Unauthorized. Please log in as admin.');
-      } else if (error.response?.status === 404) {
-        toast.error('Admin profile not found.');
-      }
-      return null;
+      console.warn('Failed to fetch public admin profile:', error?.response?.status || error.message)
+      return null
     }
   }
 
@@ -357,14 +358,13 @@ const Consultation_chat = () => {
               </button>
               
               <div className="flex items-center gap-3">
-                {otherPerson?.profilePic ? (
+                {otherPersonPicUrl ? (
                   <div className="relative">
                     <img
-                      src={getProfilePicUrl(otherPerson)}
+                      src={otherPersonPicUrl || undefined}
                       alt={otherPerson?.userName}
                       className="w-12 h-12 md:w-14 md:h-14 rounded-full object-cover border-3 border-brown shadow-lg"
                       onError={(e) => {
-                        console.log('Image failed to load:', getProfilePicUrl(otherPerson))
                         e.target.style.display = 'none'
                         e.target.nextElementSibling.style.display = 'flex'
                       }}
@@ -421,7 +421,7 @@ const Consultation_chat = () => {
             ) : (
               messages.map(m => {
                 const isOwnMessage = m.sender && m.sender._id === userData._id
-                const messageSenderPic = m.sender ? getProfilePicUrl(m.sender) : ''
+                const messageSenderPic = m.sender ? getProfilePicUrl(m.sender) : null
                 const messageSenderName = m.sender?.userName || 'Unknown'
                 
                 return (
@@ -430,7 +430,7 @@ const Consultation_chat = () => {
                       {!isOwnMessage && (
                         messageSenderPic ? (
                           <img
-                            src={messageSenderPic}
+                            src={messageSenderPic || undefined}
                             alt={messageSenderName}
                             className="flex-shrink-0 w-8 h-8 rounded-full object-cover border-2 border-brown shadow-md"
                             onError={(e) => {
@@ -562,21 +562,19 @@ const Consultation_chat = () => {
                         </div>
                       </div>
                       
-                      {isOwnMessage && (
-                        getProfilePicUrl(userData) ? (
-                          <img 
-                            src={getProfilePicUrl(userData)} 
-                            alt={userData.userName} 
-                            className="flex-shrink-0 w-8 h-8 rounded-full object-cover border-2 border-white shadow-md"
-                            onError={(e) => {
-                              e.target.style.display = 'none'
-                              e.target.nextElementSibling.style.display = 'flex'
-                            }}
-                          />
-                        ) : null
+                      {isOwnMessage && currentUserPicUrl && (
+                        <img 
+                          src={currentUserPicUrl || undefined} 
+                          alt={userData.userName} 
+                          className="flex-shrink-0 w-8 h-8 rounded-full object-cover border-2 border-white shadow-md"
+                          onError={(e) => {
+                            e.target.style.display = 'none'
+                            e.target.nextElementSibling.style.display = 'flex'
+                          }}
+                        />
                       )}
                       {isOwnMessage && (
-                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-browntextcolor to-brown items-center justify-center text-sm font-semibold text-white shadow-md" style={{ display: getProfilePicUrl(userData) ? 'none' : 'flex' }}>
+                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-browntextcolor to-brown items-center justify-center text-sm font-semibold text-white shadow-md" style={{ display: currentUserPicUrl ? 'none' : 'flex' }}>
                           {userData.userName?.[0]?.toUpperCase()}
                         </div>
                       )}

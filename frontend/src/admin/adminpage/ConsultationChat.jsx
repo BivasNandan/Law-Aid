@@ -62,12 +62,16 @@ const ConsultationChat = () => {
         // Fetch conversation details first to get other participant
         let otherPersonData = null
         try {
-          const convsRes = await axios.get(`/api/chat/conversations`, { withCredentials: true })
-          const convs = Array.isArray(convsRes.data) ? convsRes.data : (convsRes.data?.conversations || [])
-          const found = convs.find(c => (c._id || c)?.toString() === conversationId?.toString())
-          
-          if (found?.participants) {
-            const part = found.participants.find(p => p._id?.toString() !== userData._id?.toString())
+          const convRes = await axios.get(
+            `/api/chat/conversations/${conversationId}`,
+            { withCredentials: true }
+          )
+          const convData = convRes.data
+          if (isMountedRef.current && convData) {
+            setConversation(convData)
+          }
+          if (convData?.participants) {
+            const part = convData.participants.find(p => p._id?.toString() !== userData._id?.toString())
             if (part && isMountedRef.current) {
               console.log('Other person found:', part.userName)
               setOtherPerson(part)
@@ -76,6 +80,10 @@ const ConsultationChat = () => {
           }
         } catch (e) {
           console.warn('Failed to fetch conversation details:', e)
+          if (e?.response?.status === 404) {
+            toast.error('Conversation not found')
+            setConversation({ _id: conversationId })
+          }
         }
 
         // Fetch messages

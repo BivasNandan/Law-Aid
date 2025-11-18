@@ -75,6 +75,20 @@ const LegalAdviseByExpert = () => {
     navigate(`/admin/consultation-chat/${conv._id}`);
   };
 
+  const handleDeleteConversation = async (conversationId) => {
+    if (!conversationId) return;
+    if (!window.confirm('Are you sure you want to delete this conversation?')) return;
+
+    try {
+      await axios.delete(`/api/chat/conversations/${conversationId}`, { withCredentials: true });
+      toast.success('Conversation deleted');
+      setConversations(prev => prev.filter(conv => conv._id !== conversationId));
+    } catch (err) {
+      console.error('Failed to delete conversation:', err);
+      toast.error(err.response?.data?.message || 'Failed to delete conversation');
+    }
+  };
+
   if (loading || appLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-brownBG via-brown to-brownforhover flex items-center justify-center">
@@ -157,16 +171,27 @@ const LegalAdviseByExpert = () => {
                           )}
                         </div>
 
-                        {/* Action Button */}
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenChat(conv);
-                          }}
-                          className="px-6 py-3 bg-gradient-to-r from-brown to-brownforhover text-white font-semibold rounded-xl hover:shadow-lg transition-all"
-                        >
-                          Open Chat →
-                        </button>
+                        {/* Action Buttons */}
+                        <div className="flex gap-3">
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenChat(conv);
+                            }}
+                            className="px-6 py-3 bg-gradient-to-r from-brown to-brownforhover text-white font-semibold rounded-xl hover:shadow-lg transition-all"
+                          >
+                            Open Chat →
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteConversation(conv._id);
+                            }}
+                            className="px-4 py-3 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-xl transition-all"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );

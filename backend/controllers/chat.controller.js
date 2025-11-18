@@ -202,17 +202,25 @@ export const getMessages = async (req, res) => {
 export const getMyConversations = async (req, res) => {
   try {
     const me = req.user?.id;
+    const role = req.user?.role;
     if (!me) return res.status(401).json({ message: "Authentication required" });
 
-    const { type } = req.query;
-    const q = { participants: me };
-    if (type) q.type = type;
+    const { type, limit = 100 } = req.query;
+    const query = {};
 
-    const convs = await Conversation.find(q)
+    if (role === 'admin') {
+      if (type) query.type = type;
+      else query.type = { $in: ['consultation', 'direct'] };
+    } else {
+      query.participants = me;
+      if (type) query.type = type;
+    }
+
+    const convs = await Conversation.find(query)
       .sort({ updatedAt: -1 })
-      .populate('participants', 'userName profilePic')
+      .populate('participants', 'userName profilePic email')
       .populate({ path: 'lastMessage', populate: { path: 'sender', select: 'userName' } })
-      .limit(100);
+      .limit(Number(limit));
 
     return res.status(200).json(convs);
   } catch (err) {
@@ -220,12 +228,71 @@ export const getMyConversations = async (req, res) => {
   }
 };
 
+export const deleteConversation = async (req, res) => {
+  try {
+    const role = req.user?.role;
+    if (role !== 'admin') {
+      return res.status(403).json({ message: 'Only admins can delete conversations' });
+    }
+
+    const { conversationId } = req.params;
+    if (!conversationId) {
+      return res.status(400).json({ message: 'conversationId required' });
+    }
+
+    const conv = await Conversation.findById(conversationId);
+    if (!conv) {
+      return res.status(404).json({ message: 'Conversation not found' });
+    }
+
+    await Message.deleteMany({ conversation: conversationId });
+    await conv.deleteOne();
+
+    try {
+      const io = getIO();
+      io.to(`conv_${conversationId}`).emit('conversationDeleted', { conversationId });
+    } catch (e) {
+      // ignore socket errors
+    }
+
+    return res.status(200).json({ message: 'Conversation deleted' });
+  } catch (err) {
+    console.error('deleteConversation error:', err);
+    return res.status(500).json({ message: err.message });
+  }
+};
+
+export const getConversationDetail = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const userRole = req.user?.role;
+    if (!userId) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+
+    const { conversationId } = req.params;
+    const conv = await Conversation.findById(conversationId)
+      .populate('participants', 'userName profilePic email role')
+      .populate({ path: 'lastMessage', populate: { path: 'sender', select: 'userName' } });
+
+    if (!conv) {
+      return res.status(404).json({ message: "Conversation not found" });
+    }
+
+    const allowed = await isParticipantForConversation(userId, conv, userRole);
+    if (!allowed) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    return res.status(200).json(conv);
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+};
+
 export const uploadAttachments = async (req, res) => {
   try {
-    console.log("Upload request received. Files:", req.files ? req.files.length : 0);
-    console.log("File details:", req.files);
     if (!req.files || req.files.length === 0) {
-      console.log("No files provided in upload request");
       return res.status(400).json({ message: "No files" });
     }
     const attachments = req.files.map(f => ({
@@ -236,7 +303,6 @@ export const uploadAttachments = async (req, res) => {
       size: f.size,
       uploadedAt: new Date()
     }));
-    console.log("Upload successful. Attachments:", attachments);
     return res.status(200).json({ attachments });
   } catch (err) {
     console.error("Upload error:", err);
@@ -244,7 +310,6 @@ export const uploadAttachments = async (req, res) => {
   }
 };
 
-//allow creating a message via HTTP and emit over sockets
 export const createMessageViaHttp = async (req, res) => {
   try {
     const userId = req.user?.id;
@@ -263,21 +328,16 @@ export const createMessageViaHttp = async (req, res) => {
     conv.lastMessage = message._id; await conv.save();
     await message.populate("sender", "userName profilePic");
 
-    // emit via sockets if available
     try {
       const io = getIO();
       io.to(`conv_${conversationId}`).emit("message", message);
-      // Log emit targets for debugging
-      console.log(`Emitting message ${message._id} to conv_${conversationId}`);
       conv.participants.forEach(pid => {
         try {
-          const pidStr = pid.toString()
           if (!pid.equals(userId)) {
-            console.log(`Emitting newMessage to user_${pidStr} (excluding sender ${userId})`);
-            io.to(`user_${pidStr}`).emit("newMessage", { conversationId, message });
+            io.to(`user_${pid.toString()}`).emit("newMessage", { conversationId, message });
           }
         } catch (e) {
-          console.warn('Failed to emit newMessage to participant', pid, e)
+          console.warn('Failed to emit newMessage to participant', pid, e);
         }
       });
     } catch (e) {
@@ -302,7 +362,6 @@ export const editMessage = async (req, res) => {
     const message = await Message.findById(messageId).populate("sender", "userName profilePic");
     if (!message) return res.status(404).json({ message: "Message not found" });
     
-    // Only sender can edit
     if (message.sender._id.toString() !== userId) return res.status(403).json({ message: "Can only edit own messages" });
 
     message.text = text;
@@ -313,7 +372,6 @@ export const editMessage = async (req, res) => {
     message.editedAt = new Date();
     await message.save();
 
-    // emit via sockets if available
     try {
       const io = getIO();
       io.to(`conv_${message.conversation}`).emit("messageEdited", message);
@@ -335,24 +393,20 @@ export const downloadAttachment = async (req, res) => {
     const { filename } = req.params;
     if (!filename) return res.status(400).json({ message: "Filename required" });
 
-    // Security: prevent directory traversal
     if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
       return res.status(400).json({ message: "Invalid filename" });
     }
 
     const filePath = path.join(process.cwd(), 'uploads/chat', filename);
     
-    // Check if file exists
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ message: "File not found" });
     }
 
-    // Set proper headers for download
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Content-Type', 'application/octet-stream');
     res.setHeader('Content-Length', fs.statSync(filePath).size);
 
-    // Stream the file
     const fileStream = fs.createReadStream(filePath);
     fileStream.pipe(res);
     
@@ -367,4 +421,3 @@ export const downloadAttachment = async (req, res) => {
     return res.status(500).json({ message: err.message });
   }
 };
-// ...existing code...

@@ -85,6 +85,9 @@ useEffect(() => {
     setIsSaving(true)
     try {
       const formData = new FormData()
+      if (profileData._id) {
+        formData.append('_id', profileData._id)
+      }
       formData.append('userName', profileData.userName)
       formData.append('email', profileData.email)
       formData.append('firstName', profileData.firstName || '')
@@ -122,7 +125,11 @@ useEffect(() => {
 
     setIsSaving(true)
     try {
-      await axios.delete(`${backendUrl}/api/auth/delete-account`, { withCredentials: true })
+      const payload = { userId: profileData._id || userData?._id }
+      await axios.delete(`${backendUrl}/api/auth/delete-account`, { 
+        data: payload,
+        withCredentials: true 
+      })
       toast.success('Account deleted successfully')
       logout()
       navigate('/')

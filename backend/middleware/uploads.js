@@ -17,11 +17,22 @@ ensureDir("uploads/chat");
 const fileFilter = (req, file, cb) => {
     try {
         if (file.fieldname === "profilePic") {
-            const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+            const allowedMimes = [
+                'image/jpeg',
+                'image/jpg',
+                'image/png',
+                'image/gif',
+                'image/webp',
+                'image/pjpeg',
+                'image/jfif',
+                'image/heic',
+                'image/heif',
+                'image/avif'
+            ];
             if (allowedMimes.includes(file.mimetype)) {
                 cb(null, true);
             } else {
-                cb(new Error('Invalid file type for profile picture. Only JPEG, JPG, PNG, GIF, WEBP are allowed.'), false);
+                cb(new Error('Invalid file type for profile picture. Only JPEG, JPG, PNG, GIF, WEBP, HEIC/HEIF, AVIF are allowed.'), false);
             }
         } 
         else if (file.fieldname === "resume") {

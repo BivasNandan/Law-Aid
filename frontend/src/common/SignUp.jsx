@@ -58,6 +58,7 @@ const SignupPage = () => {
     setLoading(true)
     try {
       console.log(`📝 Registering as ${role}:`, { userName, email })
+      console.log(`📝 Sending role: ${role}`)
       
       const res = await axios.post(
         `${backendUrl}/api/auth/register`, 
@@ -67,14 +68,28 @@ const SignupPage = () => {
       
       console.log('✅ Signup successful:', res.data)
       
-      // Set user data in context
-      if (res.data?.user) {
-        setUserData(res.data.user, res.data.token)
-        console.log(`✅ ${role} account created:`, res.data.user.userName)
-      } else {
-        toast.error('Signup failed - no user data returned')
+      // Immediately log the user in so auth cookies are set for protected routes
+      let loggedInUser = null
+      try {
+        const loginRes = await axios.post(
+          `${backendUrl}/api/auth/login`,
+          { email, password },
+          { withCredentials: true }
+        )
+        loggedInUser = loginRes.data?.user
+      } catch (loginErr) {
+        console.error('❌ Auto-login after signup failed:', loginErr)
+        toast.error(loginErr.response?.data?.message || 'Signup succeeded but login failed. Please login manually.')
+        navigate('/login', { replace: true })
         return
       }
+
+      if (!loggedInUser?._id) {
+        toast.error('Login succeeded but no user data returned')
+        return
+      }
+
+      setUserData(loggedInUser)
 
       toast.success('Account created! Now complete your profile')
       

@@ -23,23 +23,12 @@ import { requireAuth } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-// ✅ Request logging middleware for debugging
-router.use((req, res, next) => {
-  if (req.path.includes('set-client-additional-info') || req.path.includes('set-lawyer-additional-info')) {
-    console.log(`\n🔵 ${req.method} ${req.path}`);
-    console.log('   Cookies:', Object.keys(req.cookies || {}));
-    console.log('   Headers Content-Type:', req.headers['content-type']);
-  }
-  next();
-});
+
 
 // Registration and login routes
 router.post("/assigningRole", assigningRole);
 router.post("/register", register);
 
-// FIX: Both endpoints now use uploadBothFiles to handle both profilePic and resume
-// For clients: only profilePic is used
-// For lawyers: both profilePic and resume are used
 
 // ✅ Middleware to catch Multer errors on client profile endpoint
 const clientProfileMiddleware = (req, res, next) => {

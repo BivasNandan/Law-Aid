@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import User from '../models/user.js';
 import Admin from '../models/admin.js';
 import { generateTokenForUserId, generateTokenForRole } from '../utils/tokens.js';
@@ -191,11 +192,33 @@ export const logout = async (req, res) => {
 // GET ME - verify token and return current user
 export const getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select('-password');
-    if (!user) return res.status(404).json({ message: 'User not found' });
-    res.json(user);
+    // Accept token from cookie or Authorization header
+    const authHeader = req.headers.authorization || '';
+    const bearerToken = authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
+    const token = req.cookies?.userToken || req.cookies?.roleToken || bearerToken;
+
+    if (!token) {
+      return res.status(200).json({ authenticated: false, user: null });
+    }
+
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (err) {
+      console.warn('getMe: invalid token supplied', err.message);
+      return res.status(200).json({ authenticated: false, user: null });
+    }
+
+    const user = await User.findById(decoded.userId).select('-password');
+    if (!user) {
+      console.warn('getMe: user not found for token userId:', decoded.userId);
+      return res.status(200).json({ authenticated: false, user: null });
+    }
+
+    return res.status(200).json({ authenticated: true, user });
   } catch (err) {
-    res.status(500).json({ message: 'Server error', error: err.message });
+    console.error('getMe: server error', err);
+    return res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
 
@@ -203,18 +226,33 @@ export const getMe = async (req, res) => {
 // EDIT PROFILE - handle both regular users and admin
 export const editProfile = async (req, res) => {
   try {
-    // Get user from token
+    // Get user from token first, fallback to body _id
     const token = req.cookies?.userToken || req.cookies?.roleToken;
-    if (!token) {
+    let userId = null;
+    let userRole = null;
+
+    const jwt = await import('jsonwebtoken');
+
+    if (token) {
+      try {
+        const decoded = jwt.default.verify(token, process.env.JWT_SECRET);
+        userId = decoded.userId;
+        userRole = decoded.role;
+      } catch (err) {
+        console.warn('editProfile: token verification failed', err?.message || err);
+      }
+    }
+
+    if (!userId && (req.body?._id || req.body?.userId)) {
+      userId = req.body._id || req.body.userId;
+      console.log('editProfile: using userId from body:', userId);
+    }
+
+    if (!userId) {
       return res.status(401).json({ message: 'Authentication required' });
     }
 
-    const jwt = await import('jsonwebtoken');
-    const decoded = jwt.default.verify(token, process.env.JWT_SECRET);
-    const userId = decoded.userId;
-    const userRole = decoded.role;
-
-    console.log('editProfile: userId from token:', userId);
+    console.log('editProfile: userId:', userId);
     console.log('editProfile: userRole:', userRole);
 
     // If admin, redirect to admin profile update endpoint
@@ -544,7 +582,19 @@ export const setClientAdditionalInfo = async (req, res) => {
 // SET LAWYER ADDITIONAL INFO - Complete lawyer profile
 export const setLawyerAdditionalInfo = async (req, res) => {
   try {
-    const { _id: bodyId, firstName, lastName, phone, age, specialization, experience, licenseNumber, barCouncilNumber } = req.body;
+    const { 
+      _id: bodyId, 
+      firstName, 
+      lastName, 
+      phone, 
+      age, 
+      specialization, 
+      experience, 
+      licenseNo,        // ✅ Changed from licenseNumber
+      chamberAddress,   // ✅ ADD THIS - it's missing!
+      visitingHours,    // ✅ ADD THIS - it's missing!
+      barCouncilNumber 
+    } = req.body;
 
     console.log('setLawyerAdditionalInfo called, body keys:', Object.keys(req.body));
 
@@ -569,11 +619,15 @@ export const setLawyerAdditionalInfo = async (req, res) => {
 
     const user = await User.findById(userId);
     if (!user) {
+      console.error('❌ User not found in database with ID:', userId);
       return res.status(404).json({ message: 'User not found' });
     }
 
+    console.log('✅ User found:', user.userName, 'Role:', user.role);
+
     // Verify user is a lawyer
     if (user.role !== 'lawyer') {
+      console.error('❌ User is not a lawyer. Role:', user.role);
       return res.status(400).json({ message: 'Only lawyers can set lawyer additional info' });
     }
 
@@ -584,9 +638,13 @@ export const setLawyerAdditionalInfo = async (req, res) => {
     if (phone) updateData.phone = phone;
     if (age) updateData.age = age;
     if (specialization) updateData.specialization = specialization;
-    if (experience) updateData.experience = experience;
-    if (licenseNumber) updateData.licenseNo = licenseNumber;
+    if (experience) updateData.experience = parseInt(experience);
+    if (licenseNo) updateData.licenseNo = licenseNo;  // ✅ Fixed
+    if (chamberAddress) updateData.chamberAddress = chamberAddress;  // ✅ Added
+    if (visitingHours) updateData.visitingHours = parseInt(visitingHours);  // ✅ Added
     if (barCouncilNumber) updateData.barCouncilNumber = barCouncilNumber;
+
+    console.log('📝 Update data:', updateData);
 
     // Handle file uploads
     if (req.files) {
@@ -596,11 +654,12 @@ export const setLawyerAdditionalInfo = async (req, res) => {
         updateData.profilePic = {
           filename: profileFile.filename,
           originalName: profileFile.originalname,
-          path: profileFile.path.replace(/\\\\/g, '/'),
+          path: profileFile.path.replace(/\\/g, '/'),
           mimetype: profileFile.mimetype,
           size: profileFile.size,
           uploadedAt: new Date()
         };
+        console.log('✅ Profile pic uploaded:', profileFile.filename);
       }
 
       // Resume
@@ -609,22 +668,35 @@ export const setLawyerAdditionalInfo = async (req, res) => {
         updateData.resume = {
           filename: resumeFile.filename,
           originalName: resumeFile.originalname,
-          path: resumeFile.path.replace(/\\\\/g, '/'),
+          path: resumeFile.path.replace(/\\/g, '/'),
           mimetype: resumeFile.mimetype,
           size: resumeFile.size,
           uploadedAt: new Date()
         };
+        console.log('✅ Resume uploaded:', resumeFile.filename);
       }
     }
+
+    // Mark profile as complete
+    updateData.isProfileComplete = true;
 
     // Use findByIdAndUpdate to avoid password validation during update
     const updatedUser = await User.findByIdAndUpdate(
       userId,
-      updateData,
-      { new: true, runValidators: true }
+      { $set: updateData },
+      { 
+        new: true, 
+        runValidators: true,
+        context: 'query'
+      }
     ).select('-password').lean();
 
-    console.log('✅ Lawyer profile updated:', updatedUser.userName);
+    if (!updatedUser) {
+      console.error('❌ Failed to update user');
+      return res.status(500).json({ message: 'Failed to update profile' });
+    }
+
+    console.log('✅ Lawyer profile updated successfully:', updatedUser.userName);
 
     return res.status(200).json({
       message: 'Lawyer profile completed successfully',
@@ -640,7 +712,6 @@ export const setLawyerAdditionalInfo = async (req, res) => {
     });
   }
 };
-
 export const getAllLawyers = async (req, res) => {
   try {
     const lawyers = await User.find({ role: 'lawyer' }).select('-password').lean();

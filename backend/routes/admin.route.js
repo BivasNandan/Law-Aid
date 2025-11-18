@@ -1,6 +1,6 @@
 import express from 'express';
 import requireAdmin from '../middleware/adminMiddleware.js';
-import { getAdminProfile, createOrUpdateAdminProfile, changeAdminPassword, getLegalAdviseRequests, startAdminClientConversation } from '../controllers/admin.controller.js';
+import { getAdminProfile, createOrUpdateAdminProfile, changeAdminPassword, getLegalAdviseRequests, startAdminClientConversation, getPublicAdminProfile } from '../controllers/admin.controller.js';
 import { uploadProfilePic } from '../middleware/uploads.js';
 
 const router = express.Router();
@@ -12,6 +12,7 @@ router.get('/dashboard', requireAdmin, (req, res) => {
 
 // Admin profile endpoints
 router.get('/profile', requireAdmin, getAdminProfile);
+router.get('/public-profile', getPublicAdminProfile);
 router.put('/profile', requireAdmin, uploadProfilePic.single('profilePic'), createOrUpdateAdminProfile);
 router.post('/change-password', requireAdmin, changeAdminPassword);
 

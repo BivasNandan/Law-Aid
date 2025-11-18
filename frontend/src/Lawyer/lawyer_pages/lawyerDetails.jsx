@@ -1,5 +1,5 @@
-import React, { useState, useContext, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import React, { useState, useContext, useRef, useMemo } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import axios from 'axios'
 import { toast } from 'react-hot-toast'
 import { Appcontext } from '../../lib/Appcontext'
@@ -21,7 +21,23 @@ const LawyerDetails = () => {
   const profilePicRef = useRef(null)
   const resumeRef = useRef(null)
   const navigate = useNavigate()
-  const { backendUrl, setUserData } = useContext(Appcontext)
+  const location = useLocation()
+  const { backendUrl, setUserData, userData } = useContext(Appcontext)
+
+  const resolvedUserId = useMemo(() => {
+    if (location.state?.userId) return location.state.userId
+    if (userData?._id) return userData._id
+    try {
+      const stored = localStorage.getItem('userData')
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        return parsed?._id || parsed?.user?._id || null
+      }
+    } catch (err) {
+      console.warn('Failed to parse stored userData', err)
+    }
+    return null
+  }, [location.state, userData])
 
   const specializations = [
     "Civil Law", "Criminal Law", "Family Law", "Corporate & Commercial Law",
@@ -71,6 +87,13 @@ const LawyerDetails = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
 
+    // Ensure we know which lawyer is submitting
+    if (!resolvedUserId) {
+      toast.error('Cannot determine user. Please log in again.')
+      navigate('/login', { replace: true })
+      return
+    }
+
     // Validate required fields
     if (!formData.specialization || !formData.licenseNo || !formData.chamberAddress) {
       toast.error('Specialization, License No., and Chamber Address are required')
@@ -81,6 +104,7 @@ const LawyerDetails = () => {
 
     try {
       const data = new FormData()
+      data.append('_id', resolvedUserId)
       data.append('specialization', formData.specialization)
       data.append('licenseNo', formData.licenseNo)
       data.append('chamberAddress', formData.chamberAddress)
@@ -98,6 +122,12 @@ const LawyerDetails = () => {
         data.append('resume', formData.resume)
         console.log('Uploading with resume:', formData.resume.name)
       }
+
+      // Debug: Log cookies and user context before PATCH
+      console.log('🔍 Attempting PATCH for lawyer additional info');
+      console.log('🔍 Current user context:', JSON.stringify(localStorage.getItem('userData')));
+      // If you use cookies, log document.cookie
+      console.log('🔍 document.cookie:', document.cookie);
 
       // Send as PATCH to match backend route
       const response = await axios.patch(
@@ -149,13 +179,21 @@ const LawyerDetails = () => {
           <form onSubmit={handleSubmit} className='space-y-5'>
             {/* Profile Picture */}
             <div className='text-center'>
-              {preview ? (
-                <div className='relative inline-block'>
+              <div className='relative w-28 h-28 mx-auto mb-4'>
+                {preview ? (
                   <img 
                     src={preview} 
                     alt="preview" 
-                    className='w-24 h-24 rounded-full mx-auto mb-4 object-cover border-4 border-amber-700' 
+                    className='w-28 h-28 rounded-full object-cover border-4 border-amber-700 shadow-lg' 
                   />
+                ) : (
+                  <div className='w-full h-full rounded-full bg-gray-200 flex items-center justify-center border-4 border-dashed border-amber-200'>
+                    <svg className='w-12 h-12 text-gray-400' fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  </div>
+                )}
+                {preview && (
                   <button
                     type="button"
                     onClick={() => {
@@ -163,18 +201,13 @@ const LawyerDetails = () => {
                       setFormData(prev => ({ ...prev, profilePic: null }))
                       if (profilePicRef.current) profilePicRef.current.value = ''
                     }}
-                    className='absolute top-0 right-0 bg-red-500 hover:bg-red-600 text-white rounded-full p-1'
+                    className='absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1.5 shadow'
+                    aria-label="Remove photo"
                   >
                     ✕
                   </button>
-                </div>
-              ) : (
-                <div className='w-24 h-24 rounded-full mx-auto mb-4 bg-gray-200 flex items-center justify-center'>
-                  <svg className='w-12 h-12 text-gray-400' fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                </div>
-              )}
+                )}
+              </div>
               
               <input
                 ref={profilePicRef}

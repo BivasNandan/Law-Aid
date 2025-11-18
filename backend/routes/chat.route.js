@@ -7,6 +7,8 @@ import {
   getOrCreateConversationWithAdmin,
   getMessages,
   getMyConversations,
+  getConversationDetail,
+  deleteConversation,
   uploadAttachments,
   createMessageViaHttp,
   editMessage,
@@ -19,6 +21,8 @@ router.post("/conversation", requireAuth, getOrCreateConversation); // query: ty
 // create/get conversation with site admin for authenticated user
 router.post("/conversation/admin", requireAuth, getOrCreateConversationWithAdmin);
 router.get("/conversations", requireAuth, getMyConversations); // list conversations for the authenticated user; optional query ?type=consultation
+router.get("/conversations/:conversationId", requireAuth, getConversationDetail);
+router.delete("/conversations/:conversationId", requireAuth, deleteConversation);
 router.get("/conversation/:conversationId/messages", requireAuth, getMessages);
 
 // ensure auth runs BEFORE multer so req.user is available in filename logic

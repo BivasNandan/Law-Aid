@@ -204,7 +204,7 @@ export const getMe = async (req, res) => {
     let decoded;
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET);
-    } catch (err) {
+  } catch (err) {
       console.warn('getMe: invalid token supplied', err.message);
       return res.status(200).json({ authenticated: false, user: null });
     }
@@ -235,7 +235,7 @@ export const editProfile = async (req, res) => {
 
     if (token) {
       try {
-        const decoded = jwt.default.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.default.verify(token, process.env.JWT_SECRET);
         userId = decoded.userId;
         userRole = decoded.role;
       } catch (err) {

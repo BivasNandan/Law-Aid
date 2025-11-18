@@ -1,0 +1,21 @@
+{
+    "include": [
+        "."
+    ],
+    "exclude": [
+        "**/__pycache__",
+        "**/node_modules",
+        ".pytest_cache"
+    ],
+    "pythonVersion": "3.10",
+    "pythonPlatform": "Windows",
+    "typeCheckingMode": "basic",
+    "reportMissingImports": "warning",
+    "reportMissingTypeStubs": false,
+    "executionEnvironments": [
+        {
+            "root": "."
+        }
+    ]
+}
+
